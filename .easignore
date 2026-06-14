@@ -1,0 +1,14 @@
+# PM2 / process manager (socket files break EAS tarball)
+.pm2
+**/*.sock
+
+# Build caches (android/ source is still uploaded)
+android/build
+android/app/build
+android/.gradle
+ios/build
+ios/Pods
+
+# Dependencies & caches
+node_modules
+.expo
