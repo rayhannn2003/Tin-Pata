@@ -1,4 +1,5 @@
 import { SettingsRepository } from '@/db/repositories/SettingsRepository';
+import { ReaderStabilityService } from '@/services/ReaderStabilityService';
 import {
   DEFAULT_READER_PREFERENCES,
   READER_SETTING_KEYS,
@@ -48,8 +49,10 @@ export function scrollModeToPaging(scrollMode: ReaderScrollMode): boolean {
 }
 
 export const ReaderPreferencesService = {
-  /** Fit/scroll/default-focus prefs are stored but not applied in v1.1.1 (reader stability). */
+  /** Fit/scroll/default-focus prefs are stored but not applied while stability mode is `safe`. */
   async getPreferences(): Promise<ReaderPreferences> {
+    await ReaderStabilityService.ensureSafeMode();
+
     const [
       keepAwake,
       fitMode,

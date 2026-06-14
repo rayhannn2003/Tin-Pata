@@ -123,6 +123,7 @@ export const translations: Record<AppLanguage, TranslationTree> = {
       pageIndicatorShort: 'Page {{current}}',
       lastReadPage: 'Last read: page {{page}}',
       goToSavedPage: 'Go to page {{page}}',
+      openingLastPage: 'Opening your last page…',
       openingPage: 'Opening page {{page}}…',
       resumedFromPage: 'Resumed from page {{page}}',
       autoResumeUnavailable: 'Auto-resume unavailable. Tap to jump manually.',
@@ -315,7 +316,7 @@ export const translations: Record<AppLanguage, TranslationTree> = {
       fitModeNote: 'Horizontal page swipe uses paging mode. Some PDFs may behave differently.',
       comingLater: 'Coming in a future update',
       stabilityNote:
-        'Fit mode, scroll direction, focus mode, and default focus are temporarily disabled for reader stability.',
+        'Focus mode, fit mode, scroll direction, and default focus are coming later. The reader runs in safe stability mode.',
     },
     focus: {
       title: 'Focus Mode',
@@ -474,6 +475,7 @@ export const translations: Record<AppLanguage, TranslationTree> = {
       pageIndicatorShort: 'পাতা {{current}}',
       lastReadPage: 'শেষ পড়া: {{page}} নম্বর পাতা',
       goToSavedPage: '{{page}} নম্বর পাতায় যান',
+      openingLastPage: 'আপনার শেষ পাতা খোলা হচ্ছে…',
       openingPage: '{{page}} নম্বর পাতা খোলা হচ্ছে…',
       resumedFromPage: '{{page}} নম্বর পাতা থেকে শুরু হয়েছে',
       autoResumeUnavailable: 'স্বয়ংক্রিয়ভাবে চালু করা যায়নি। হাতে করে পাতায় যান।',
@@ -664,7 +666,7 @@ export const translations: Record<AppLanguage, TranslationTree> = {
       fitModeNote: 'অনুভূমিক সোয়াইপে পেজিং মোড ব্যবহার হয়। কিছু PDF আলাদা আচরণ করতে পারে।',
       comingLater: 'ভবিষ্যত আপডেটে আসছে',
       stabilityNote:
-        'রিডার স্থিতিশীলতার জন্য ফিট মোড, স্ক্রল দিক, ফোকাস মোড এবং ডিফল্ট ফোকাস সাময়িকভাবে বন্ধ।',
+        'ফোকাস মোড, ফিট মোড, স্ক্রল দিক ও ডিফল্ট ফোকাস পরে আসবে। রিডার এখন safe stability mode-এ চলে।',
     },
     focus: {
       title: 'ফোকাস মোড',

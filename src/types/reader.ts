@@ -6,12 +6,18 @@ export const READER_SETTING_KEYS = {
   showProgress: 'reader_show_progress',
   compactActions: 'reader_compact_actions',
   defaultFocusMode: 'reader_default_focus_mode',
+  stabilityMode: 'reader_stability_mode',
 } as const;
 
 export const LAST_BACKUP_AT_KEY = 'last_backup_at';
 
 export type ReaderFitMode = 'width' | 'page' | 'auto';
 export type ReaderScrollMode = 'vertical' | 'horizontal';
+
+/** v1.1.4A: only `safe` is supported; future modes must opt in explicitly. */
+export type ReaderStabilityMode = 'safe';
+
+export const DEFAULT_READER_STABILITY_MODE: ReaderStabilityMode = 'safe';
 
 export interface ReaderPreferences {
   keepAwake: boolean;
@@ -33,7 +39,7 @@ export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
   defaultFocusMode: false,
 };
 
-/** v1.1.1: PDF layout uses these stable values regardless of stored fit/scroll prefs. */
+/** PDF layout in safe stability mode — not driven by stored fit/scroll prefs. */
 export const STABLE_READER_PDF_BEHAVIOR = {
   fitMode: 'auto' as ReaderFitMode,
   scrollMode: 'vertical' as ReaderScrollMode,
@@ -49,4 +55,5 @@ export const PORTABLE_READER_SETTING_KEYS: string[] = [
   READER_SETTING_KEYS.showProgress,
   READER_SETTING_KEYS.compactActions,
   READER_SETTING_KEYS.defaultFocusMode,
+  READER_SETTING_KEYS.stabilityMode,
 ];

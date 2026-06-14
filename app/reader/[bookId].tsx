@@ -370,9 +370,11 @@ export default function ReaderScreen() {
           />
         ) : null}
 
-        {!isRescueActive && autoResumeStatus === 'opening' && savedPage > 1 ? (
+        {!isRescueActive &&
+        savedPage > 1 &&
+        (pdfLoading || autoResumeStatus === 'opening') ? (
           <FeedbackBanner
-            message={t('reader.openingPage', { page: savedPage })}
+            message={t('reader.openingLastPage')}
             variant="info"
             autoDismissMs={0}
           />
@@ -396,7 +398,7 @@ export default function ReaderScreen() {
           />
         ) : null}
 
-        {pdfLoading ? (
+        {pdfLoading && savedPage <= 1 ? (
           <View style={styles.pdfLoading} pointerEvents="none">
             <ActivityIndicator color={colors.tint} size="large" />
             <ThemedText variant="caption" secondary>
@@ -406,6 +408,7 @@ export default function ReaderScreen() {
         ) : null}
 
         <ReaderPdfContent
+          key={pdfUri}
           pdfRef={pdfRef}
           uri={pdfUri}
           initialPage={initialResumePage}

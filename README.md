@@ -87,9 +87,9 @@ Package: `com.readinghabit.tracker` · App name: **তিনপাতা (Tin Pa
 |----------|-------------|
 | [Brand Assets](docs/BRAND_ASSETS.md) | Icon/splash paths and sizes |
 | [CNG / Prebuild Setup](docs/CNG_SETUP.md) | Native folder policy, clean rebuild |
-| [Reader Stability Checklist](docs/READER_STABILITY_TEST_CHECKLIST.md) | PDF reader QA (v1.1.2) |
+| [Reader Known Limitations](docs/READER_KNOWN_LIMITATIONS.md) | PDF resume black flash, safe mode constraints |
+| [Reader Stability Checklist](docs/READER_STABILITY_TEST_CHECKLIST.md) | PDF reader QA (v1.1.4A) |
 | [Manual Test Checklist](docs/MANUAL_TEST_CHECKLIST.md) | v1.0 release QA |
 | [Release Build Guide](docs/RELEASE_BUILD_GUIDE.md) | Dev + production APK |
 | [Development Roadmap](docs/DEVELOPMENT_ROADMAP.md) | Phased plan |
 | [Database Schema](docs/DATABASE_SCHEMA.md) | SQLite tables |
-# Tin-Pata

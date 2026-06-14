@@ -46,13 +46,14 @@ function SettingSwitch({
 
 export function ReadingExperienceSettings() {
   const { t } = useTranslation();
+  const colors = useThemeColors();
   const { preferences, loading, saving, updatePreferences } = useReaderPreferences();
 
-  const disabledFeatures = useMemo(
+  const comingLaterItems = useMemo(
     () => [
+      t('focus.title'),
       t('readerPrefs.fitMode'),
       t('readerPrefs.scrollMode'),
-      t('focus.title'),
       t('readerPrefs.defaultFocusMode'),
     ],
     [t],
@@ -100,15 +101,13 @@ export function ReadingExperienceSettings() {
         disabled={disabled}
       />
 
-      <View style={styles.comingLater}>
+      <View style={[styles.comingLater, { borderTopColor: colors.border }]}>
         <ThemedText variant="label" secondary>
           {t('readerPrefs.comingLater')}
         </ThemedText>
-        {disabledFeatures.map((feature) => (
-          <ThemedText key={feature} variant="caption" secondary>
-            · {feature}
-          </ThemedText>
-        ))}
+        <ThemedText variant="caption" secondary>
+          {comingLaterItems.join(' · ')}
+        </ThemedText>
         <ThemedText variant="caption" secondary>
           {t('readerPrefs.stabilityNote')}
         </ThemedText>
@@ -129,5 +128,10 @@ const styles = StyleSheet.create({
   },
   rowText: { flex: 1, gap: 2 },
   rowLabel: { fontWeight: '600', fontSize: 15 },
-  comingLater: { gap: Spacing.xs, paddingTop: Spacing.xs },
+  comingLater: {
+    gap: Spacing.xs,
+    paddingTop: Spacing.sm,
+    marginTop: Spacing.xs,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
 });

@@ -1,4 +1,4 @@
-import type { RefObject } from 'react';
+import { memo, type RefObject } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { PdfViewer } from '@/components/reader/PdfViewer';
@@ -13,7 +13,21 @@ interface ReaderPdfContentProps {
   onError: (error: unknown) => void;
 }
 
-export function ReaderPdfContent({
+function readerPdfPropsAreEqual(
+  prev: ReaderPdfContentProps,
+  next: ReaderPdfContentProps,
+): boolean {
+  return (
+    prev.uri === next.uri &&
+    prev.initialPage === next.initialPage &&
+    prev.pdfRef === next.pdfRef &&
+    prev.onLoadComplete === next.onLoadComplete &&
+    prev.onPageChanged === next.onPageChanged &&
+    prev.onError === next.onError
+  );
+}
+
+export const ReaderPdfContent = memo(function ReaderPdfContent({
   pdfRef,
   uri,
   initialPage,
@@ -33,7 +47,7 @@ export function ReaderPdfContent({
       />
     </View>
   );
-}
+}, readerPdfPropsAreEqual);
 
 const styles = StyleSheet.create({
   container: {

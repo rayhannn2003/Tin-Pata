@@ -1,4 +1,4 @@
-import { getDatabase } from '@/db/database';
+import { withDatabase } from '@/db/database';
 import type { Mood, ReadingSession } from '@/types';
 
 interface SessionRow {
@@ -31,32 +31,35 @@ function mapRow(row: SessionRow): ReadingSession {
 
 export const SessionRepository = {
   async getAllSessions(): Promise<ReadingSession[]> {
-    const db = await getDatabase();
-    const rows = await db.getAllAsync<SessionRow>(
-      'SELECT * FROM reading_sessions ORDER BY created_at DESC',
-    );
-    return rows.map(mapRow);
+    return withDatabase(async (db) => {
+      const rows = await db.getAllAsync<SessionRow>(
+        'SELECT * FROM reading_sessions ORDER BY created_at DESC',
+      );
+      return rows.map(mapRow);
+    });
   },
 
   async getSessionsByBookId(bookId: string): Promise<ReadingSession[]> {
-    const db = await getDatabase();
-    const rows = await db.getAllAsync<SessionRow>(
-      'SELECT * FROM reading_sessions WHERE book_id = ? ORDER BY created_at DESC',
-      bookId,
-    );
-    return rows.map(mapRow);
+    return withDatabase(async (db) => {
+      const rows = await db.getAllAsync<SessionRow>(
+        'SELECT * FROM reading_sessions WHERE book_id = ? ORDER BY created_at DESC',
+        bookId,
+      );
+      return rows.map(mapRow);
+    });
   },
 
   async getTodaySessions(startIso: string, endIso: string): Promise<ReadingSession[]> {
-    const db = await getDatabase();
-    const rows = await db.getAllAsync<SessionRow>(
-      `SELECT * FROM reading_sessions
-       WHERE created_at >= ? AND created_at < ?
-       ORDER BY created_at DESC`,
-      startIso,
-      endIso,
-    );
-    return rows.map(mapRow);
+    return withDatabase(async (db) => {
+      const rows = await db.getAllAsync<SessionRow>(
+        `SELECT * FROM reading_sessions
+         WHERE created_at >= ? AND created_at < ?
+         ORDER BY created_at DESC`,
+        startIso,
+        endIso,
+      );
+      return rows.map(mapRow);
+    });
   },
 
   async getSessionsByDateRange(startIso: string, endIso: string): Promise<ReadingSession[]> {
@@ -64,33 +67,36 @@ export const SessionRepository = {
   },
 
   async createSession(session: ReadingSession): Promise<void> {
-    const db = await getDatabase();
-    await db.runAsync(
-      `INSERT INTO reading_sessions (
-        id, book_id, start_page, end_page, pages_read,
-        duration_seconds, focus_level, mood, blocker_reason, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      session.id,
-      session.bookId,
-      session.startPage,
-      session.endPage,
-      session.pagesRead,
-      session.durationSeconds,
-      session.focusLevel,
-      session.mood,
-      session.blockerReason,
-      session.createdAt,
-    );
+    await withDatabase(async (db) => {
+      await db.runAsync(
+        `INSERT INTO reading_sessions (
+          id, book_id, start_page, end_page, pages_read,
+          duration_seconds, focus_level, mood, blocker_reason, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        session.id,
+        session.bookId,
+        session.startPage,
+        session.endPage,
+        session.pagesRead,
+        session.durationSeconds,
+        session.focusLevel,
+        session.mood,
+        session.blockerReason,
+        session.createdAt,
+      );
+    });
   },
 
   async deleteSession(id: string): Promise<void> {
-    const db = await getDatabase();
-    await db.runAsync('DELETE FROM reading_sessions WHERE id = ?', id);
+    await withDatabase(async (db) => {
+      await db.runAsync('DELETE FROM reading_sessions WHERE id = ?', id);
+    });
   },
 
   async deleteByBookId(bookId: string): Promise<void> {
-    const db = await getDatabase();
-    await db.runAsync('DELETE FROM reading_sessions WHERE book_id = ?', bookId);
+    await withDatabase(async (db) => {
+      await db.runAsync('DELETE FROM reading_sessions WHERE book_id = ?', bookId);
+    });
   },
 
   /** @deprecated Use getAllSessions */

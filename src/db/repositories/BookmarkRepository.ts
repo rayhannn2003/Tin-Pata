@@ -1,4 +1,4 @@
-import { getDatabase } from '@/db/database';
+import { withDatabase } from '@/db/database';
 import type { Bookmark } from '@/types';
 
 interface BookmarkRow {
@@ -21,44 +21,49 @@ function mapRow(row: BookmarkRow): Bookmark {
 
 export const BookmarkRepository = {
   async getBookmarksByBookId(bookId: string): Promise<Bookmark[]> {
-    const db = await getDatabase();
-    const rows = await db.getAllAsync<BookmarkRow>(
-      'SELECT * FROM bookmarks WHERE book_id = ? ORDER BY page_number ASC',
-      bookId,
-    );
-    return rows.map(mapRow);
+    return withDatabase(async (db) => {
+      const rows = await db.getAllAsync<BookmarkRow>(
+        'SELECT * FROM bookmarks WHERE book_id = ? ORDER BY page_number ASC',
+        bookId,
+      );
+      return rows.map(mapRow);
+    });
   },
 
   async getBookmarkByPage(bookId: string, pageNumber: number): Promise<Bookmark | null> {
-    const db = await getDatabase();
-    const row = await db.getFirstAsync<BookmarkRow>(
-      'SELECT * FROM bookmarks WHERE book_id = ? AND page_number = ?',
-      bookId,
-      pageNumber,
-    );
-    return row ? mapRow(row) : null;
+    return withDatabase(async (db) => {
+      const row = await db.getFirstAsync<BookmarkRow>(
+        'SELECT * FROM bookmarks WHERE book_id = ? AND page_number = ?',
+        bookId,
+        pageNumber,
+      );
+      return row ? mapRow(row) : null;
+    });
   },
 
   async createBookmark(bookmark: Bookmark): Promise<void> {
-    const db = await getDatabase();
-    await db.runAsync(
-      'INSERT INTO bookmarks (id, book_id, page_number, title, created_at) VALUES (?, ?, ?, ?, ?)',
-      bookmark.id,
-      bookmark.bookId,
-      bookmark.pageNumber,
-      bookmark.title,
-      bookmark.createdAt,
-    );
+    await withDatabase(async (db) => {
+      await db.runAsync(
+        'INSERT INTO bookmarks (id, book_id, page_number, title, created_at) VALUES (?, ?, ?, ?, ?)',
+        bookmark.id,
+        bookmark.bookId,
+        bookmark.pageNumber,
+        bookmark.title,
+        bookmark.createdAt,
+      );
+    });
   },
 
   async deleteBookmark(id: string): Promise<void> {
-    const db = await getDatabase();
-    await db.runAsync('DELETE FROM bookmarks WHERE id = ?', id);
+    await withDatabase(async (db) => {
+      await db.runAsync('DELETE FROM bookmarks WHERE id = ?', id);
+    });
   },
 
   async deleteBookmarksByBookId(bookId: string): Promise<void> {
-    const db = await getDatabase();
-    await db.runAsync('DELETE FROM bookmarks WHERE book_id = ?', bookId);
+    await withDatabase(async (db) => {
+      await db.runAsync('DELETE FROM bookmarks WHERE book_id = ?', bookId);
+    });
   },
 
   async isPageBookmarked(bookId: string, pageNumber: number): Promise<boolean> {
@@ -67,12 +72,13 @@ export const BookmarkRepository = {
   },
 
   async countByBookId(bookId: string): Promise<number> {
-    const db = await getDatabase();
-    const row = await db.getFirstAsync<{ count: number }>(
-      'SELECT COUNT(*) as count FROM bookmarks WHERE book_id = ?',
-      bookId,
-    );
-    return row?.count ?? 0;
+    return withDatabase(async (db) => {
+      const row = await db.getFirstAsync<{ count: number }>(
+        'SELECT COUNT(*) as count FROM bookmarks WHERE book_id = ?',
+        bookId,
+      );
+      return row?.count ?? 0;
+    });
   },
 
   /** @deprecated Use getBookmarksByBookId */

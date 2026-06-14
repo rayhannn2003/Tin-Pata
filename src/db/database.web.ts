@@ -10,6 +10,12 @@ export async function getDatabase(): Promise<never> {
   );
 }
 
+export async function withDatabase<T>(
+  _operation: (db: never) => Promise<T>,
+): Promise<T> {
+  return getDatabase();
+}
+
 export async function initializeDatabase(): Promise<void> {
   // No-op: allow UI preview in the browser without loading expo-sqlite WASM.
 }

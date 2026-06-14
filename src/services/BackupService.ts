@@ -4,7 +4,8 @@ import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 
-import { getDatabase } from '@/db/database';
+import type { SQLiteDatabase } from 'expo-sqlite';
+import { withDatabase } from '@/db/database';
 import { BookmarkRepository } from '@/db/repositories/BookmarkRepository';
 import { BookRepository } from '@/db/repositories/BookRepository';
 import { GoalRepository } from '@/db/repositories/GoalRepository';
@@ -47,59 +48,62 @@ function formatBackupFileName(date = new Date()): string {
 }
 
 async function getAllBookmarks(): Promise<Bookmark[]> {
-  const db = await getDatabase();
-  const rows = await db.getAllAsync<{
-    id: string;
-    book_id: string;
-    page_number: number;
-    title: string | null;
-    created_at: string;
-  }>('SELECT * FROM bookmarks ORDER BY created_at ASC');
-  return rows.map((row) => ({
-    id: row.id,
-    bookId: row.book_id,
-    pageNumber: row.page_number,
-    title: row.title,
-    createdAt: row.created_at,
-  }));
+  return withDatabase(async (db) => {
+    const rows = await db.getAllAsync<{
+      id: string;
+      book_id: string;
+      page_number: number;
+      title: string | null;
+      created_at: string;
+    }>('SELECT * FROM bookmarks ORDER BY created_at ASC');
+    return rows.map((row) => ({
+      id: row.id,
+      bookId: row.book_id,
+      pageNumber: row.page_number,
+      title: row.title,
+      createdAt: row.created_at,
+    }));
+  });
 }
 
 async function getAllNotes(): Promise<Note[]> {
-  const db = await getDatabase();
-  const rows = await db.getAllAsync<{
-    id: string;
-    book_id: string;
-    page_number: number;
-    note_text: string;
-    created_at: string;
-    updated_at: string;
-  }>('SELECT * FROM notes ORDER BY created_at ASC');
-  return rows.map((row) => ({
-    id: row.id,
-    bookId: row.book_id,
-    pageNumber: row.page_number,
-    noteText: row.note_text,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  }));
+  return withDatabase(async (db) => {
+    const rows = await db.getAllAsync<{
+      id: string;
+      book_id: string;
+      page_number: number;
+      note_text: string;
+      created_at: string;
+      updated_at: string;
+    }>('SELECT * FROM notes ORDER BY created_at ASC');
+    return rows.map((row) => ({
+      id: row.id,
+      bookId: row.book_id,
+      pageNumber: row.page_number,
+      noteText: row.note_text,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+  });
 }
 
 async function getAllGoals(): Promise<DailyGoal[]> {
-  const db = await getDatabase();
-  const rows = await db.getAllAsync<{
-    id: string;
-    goal_type: DailyGoal['goalType'];
-    target_value: number;
-    is_active: number;
-    created_at: string;
-  }>('SELECT * FROM daily_goals ORDER BY created_at ASC');
-  return rows.map((row) => ({
-    id: row.id,
-    goalType: row.goal_type,
-    targetValue: row.target_value,
-    isActive: row.is_active === 1,
-    createdAt: row.created_at,
-  }));
+  return withDatabase(async (db) => {
+    const rows = await db.getAllAsync<{
+      id: string;
+      goal_type: DailyGoal['goalType'];
+      target_value: number;
+      is_active: number;
+      created_at: string;
+    }>('SELECT * FROM daily_goals ORDER BY created_at ASC');
+    return rows.map((row) => ({
+      id: row.id,
+      goalType: row.goal_type,
+      targetValue: row.target_value,
+      isActive: row.is_active === 1,
+      createdAt: row.created_at,
+    }));
+  });
 }
 
 function stripCloudFields(book: Book): BackupPayload['books'][number] {
@@ -111,7 +115,7 @@ function stripCloudFields(book: Book): BackupPayload['books'][number] {
   };
 }
 
-async function clearAllDataInTransaction(db: Awaited<ReturnType<typeof getDatabase>>): Promise<void> {
+async function clearAllDataInTransaction(db: SQLiteDatabase): Promise<void> {
   await db.execAsync(`
     DELETE FROM reflections;
     DELETE FROM notes;
@@ -272,55 +276,55 @@ export const BackupService = {
       // Native module may be unavailable.
     }
 
-    const db = await getDatabase();
+    await withDatabase(async (db) => {
+      await db.withTransactionAsync(async () => {
+        await clearAllDataInTransaction(db);
 
-    await db.withTransactionAsync(async () => {
-      await clearAllDataInTransaction(db);
+        for (const book of payload.books) {
+          let isDownloaded = book.isDownloaded;
+          if (book.localUri) {
+            try {
+              isDownloaded = new File(book.localUri).exists;
+            } catch {
+              isDownloaded = false;
+            }
+          }
 
-      for (const book of payload.books) {
-        let isDownloaded = book.isDownloaded;
-        if (book.localUri) {
-          try {
-            isDownloaded = new File(book.localUri).exists;
-          } catch {
-            isDownloaded = false;
+          await BookRepository.createBook({
+            ...book,
+            isDownloaded,
+            cloudinaryPublicId: null,
+            cloudinaryAssetId: null,
+            isUploaded: false,
+          });
+        }
+
+        for (const session of payload.reading_sessions) {
+          await SessionRepository.createSession(session as ReadingSession);
+        }
+
+        for (const bookmark of payload.bookmarks) {
+          await BookmarkRepository.createBookmark(bookmark as Bookmark);
+        }
+
+        for (const note of payload.notes) {
+          await NoteRepository.createNote(note as Note);
+        }
+
+        for (const goal of payload.daily_goals) {
+          await GoalRepository.createGoal(goal as DailyGoal);
+        }
+
+        for (const reflection of payload.reflections) {
+          await ReflectionRepository.createReflection(reflection);
+        }
+
+        for (const setting of payload.settings) {
+          if (shouldIncludeSetting(setting.key)) {
+            await SettingsRepository.set(setting.key, setting.value);
           }
         }
-
-        await BookRepository.createBook({
-          ...book,
-          isDownloaded,
-          cloudinaryPublicId: null,
-          cloudinaryAssetId: null,
-          isUploaded: false,
-        });
-      }
-
-      for (const session of payload.reading_sessions) {
-        await SessionRepository.createSession(session as ReadingSession);
-      }
-
-      for (const bookmark of payload.bookmarks) {
-        await BookmarkRepository.createBookmark(bookmark as Bookmark);
-      }
-
-      for (const note of payload.notes) {
-        await NoteRepository.createNote(note as Note);
-      }
-
-      for (const goal of payload.daily_goals) {
-        await GoalRepository.createGoal(goal as DailyGoal);
-      }
-
-      for (const reflection of payload.reflections) {
-        await ReflectionRepository.createReflection(reflection);
-      }
-
-      for (const setting of payload.settings) {
-        if (shouldIncludeSetting(setting.key)) {
-          await SettingsRepository.set(setting.key, setting.value);
-        }
-      }
+      });
     });
 
     try {

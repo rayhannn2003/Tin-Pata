@@ -1,4 +1,4 @@
-import { getDatabase } from '@/db/database';
+import { withDatabase } from '@/db/database';
 import type { DailyGoal, GoalType } from '@/types';
 
 interface GoalRow {
@@ -21,51 +21,59 @@ function mapRow(row: GoalRow): DailyGoal {
 
 export const GoalRepository = {
   async getActiveGoal(): Promise<DailyGoal | null> {
-    const db = await getDatabase();
-    const row = await db.getFirstAsync<GoalRow>(
-      'SELECT * FROM daily_goals WHERE is_active = 1 ORDER BY created_at DESC LIMIT 1',
-    );
-    return row ? mapRow(row) : null;
+    return withDatabase(async (db) => {
+      const row = await db.getFirstAsync<GoalRow>(
+        'SELECT * FROM daily_goals WHERE is_active = 1 ORDER BY created_at DESC LIMIT 1',
+      );
+      return row ? mapRow(row) : null;
+    });
   },
 
   async createGoal(goal: DailyGoal): Promise<void> {
-    const db = await getDatabase();
-    await db.runAsync(
-      'INSERT INTO daily_goals (id, goal_type, target_value, is_active, created_at) VALUES (?, ?, ?, ?, ?)',
-      goal.id,
-      goal.goalType,
-      goal.targetValue,
-      goal.isActive ? 1 : 0,
-      goal.createdAt,
-    );
+    await withDatabase(async (db) => {
+      await db.runAsync(
+        'INSERT INTO daily_goals (id, goal_type, target_value, is_active, created_at) VALUES (?, ?, ?, ?, ?)',
+        goal.id,
+        goal.goalType,
+        goal.targetValue,
+        goal.isActive ? 1 : 0,
+        goal.createdAt,
+      );
+    });
   },
 
-  async updateGoal(id: string, fields: Partial<Pick<DailyGoal, 'goalType' | 'targetValue' | 'isActive'>>): Promise<void> {
-    const db = await getDatabase();
-    const existing = await db.getFirstAsync<GoalRow>(
-      'SELECT * FROM daily_goals WHERE id = ?',
-      id,
-    );
-    if (!existing) {
-      return;
-    }
+  async updateGoal(
+    id: string,
+    fields: Partial<Pick<DailyGoal, 'goalType' | 'targetValue' | 'isActive'>>,
+  ): Promise<void> {
+    await withDatabase(async (db) => {
+      const existing = await db.getFirstAsync<GoalRow>(
+        'SELECT * FROM daily_goals WHERE id = ?',
+        id,
+      );
+      if (!existing) {
+        return;
+      }
 
-    const goalType = fields.goalType ?? existing.goal_type;
-    const targetValue = fields.targetValue ?? existing.target_value;
-    const isActive = fields.isActive !== undefined ? (fields.isActive ? 1 : 0) : existing.is_active;
+      const goalType = fields.goalType ?? existing.goal_type;
+      const targetValue = fields.targetValue ?? existing.target_value;
+      const isActive =
+        fields.isActive !== undefined ? (fields.isActive ? 1 : 0) : existing.is_active;
 
-    await db.runAsync(
-      'UPDATE daily_goals SET goal_type = ?, target_value = ?, is_active = ? WHERE id = ?',
-      goalType,
-      targetValue,
-      isActive,
-      id,
-    );
+      await db.runAsync(
+        'UPDATE daily_goals SET goal_type = ?, target_value = ?, is_active = ? WHERE id = ?',
+        goalType,
+        targetValue,
+        isActive,
+        id,
+      );
+    });
   },
 
   async deactivateAllGoals(): Promise<void> {
-    const db = await getDatabase();
-    await db.runAsync('UPDATE daily_goals SET is_active = 0 WHERE is_active = 1');
+    await withDatabase(async (db) => {
+      await db.runAsync('UPDATE daily_goals SET is_active = 0 WHERE is_active = 1');
+    });
   },
 
   async setActiveGoal(goal: DailyGoal): Promise<void> {
