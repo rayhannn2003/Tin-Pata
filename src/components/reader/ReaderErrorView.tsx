@@ -9,9 +9,18 @@ interface ReaderErrorViewProps {
   message: string;
   onBack: () => void;
   hint?: string;
+  actionLabel?: string;
+  onAction?: () => void;
 }
 
-export function ReaderErrorView({ title, message, onBack, hint }: ReaderErrorViewProps) {
+export function ReaderErrorView({
+  title,
+  message,
+  onBack,
+  hint,
+  actionLabel,
+  onAction,
+}: ReaderErrorViewProps) {
   const { t } = useTranslation();
 
   return (
@@ -22,6 +31,9 @@ export function ReaderErrorView({ title, message, onBack, hint }: ReaderErrorVie
         <ThemedText variant="caption" secondary>
           {hint}
         </ThemedText>
+      ) : null}
+      {actionLabel && onAction ? (
+        <Button label={actionLabel} onPress={onAction} />
       ) : null}
       <Button label={t('common.goBack')} onPress={onBack} variant="secondary" />
     </View>

@@ -65,6 +65,7 @@ export default function ReaderScreen() {
     autoResumeStatus,
     showLoadingJumpHint,
     errorMessage,
+    pdfMissing,
     goToPageVisible,
     goToPageError,
     pdfRef,
@@ -376,8 +377,14 @@ export default function ReaderScreen() {
         edges={['top', 'left', 'right', 'bottom']}
       >
         <ReaderErrorView
-          title={t('reader.cannotOpenPdf')}
-          message={errorMessage ?? t('reader.openError')}
+          title={pdfMissing ? t('pdfMissing.blockedTitle') : t('reader.cannotOpenPdf')}
+          message={pdfMissing ? t('pdfMissing.blockedMessage') : (errorMessage ?? t('reader.openError'))}
+          actionLabel={pdfMissing ? t('pdfMissing.relink') : undefined}
+          onAction={
+            pdfMissing && bookId
+              ? () => router.replace({ pathname: '/book/[bookId]', params: { bookId } })
+              : undefined
+          }
           onBack={() => router.back()}
         />
       </SafeAreaView>

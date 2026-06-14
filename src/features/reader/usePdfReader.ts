@@ -47,6 +47,7 @@ interface UsePdfReaderResult {
   autoResumeStatus: AutoResumeStatus;
   showLoadingJumpHint: boolean;
   errorMessage: string | null;
+  pdfMissing: boolean;
   goToPageVisible: boolean;
   goToPageError: string | null;
   pdfRef: React.RefObject<PdfRef | null>;
@@ -68,6 +69,7 @@ export function usePdfReader(bookId: string | undefined): UsePdfReaderResult {
 
   const [state, setState] = useState<ReaderScreenState>('loading_book');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [pdfMissing, setPdfMissing] = useState(false);
   const [pdfUri, setPdfUri] = useState<string | null>(null);
   const [sessionFitPolicy, setSessionFitPolicy] = useState<0 | 1 | 2>(
     STABLE_READER_PDF_BEHAVIOR.fitPolicy,
@@ -334,6 +336,7 @@ export function usePdfReader(bookId: string | undefined): UsePdfReaderResult {
         setIsPdfLoaded(false);
         setShowLoadingJumpHint(false);
         setErrorMessage(null);
+        setPdfMissing(false);
         setAutoResumeStatus(storedPage > 1 ? 'opening' : 'none');
         setState('ready');
         scheduleLoadTimeout();
@@ -342,11 +345,17 @@ export function usePdfReader(bookId: string | undefined): UsePdfReaderResult {
           return;
         }
         setState('error');
-        setErrorMessage(
-          error instanceof PdfReaderError
-            ? error.message
-            : 'Could not prepare the reader.',
-        );
+        if (error instanceof PdfReaderError && error.code === 'pdf_missing') {
+          setPdfMissing(true);
+          setErrorMessage(error.message);
+        } else {
+          setPdfMissing(false);
+          setErrorMessage(
+            error instanceof PdfReaderError
+              ? error.message
+              : 'Could not prepare the reader.',
+          );
+        }
       }
     })();
 
@@ -376,6 +385,21 @@ export function usePdfReader(bookId: string | undefined): UsePdfReaderResult {
         setTotalPages(pageCount);
         totalPagesRef.current = pageCount;
         void persistTotalPages(pageCount);
+        if (bookId) {
+          void BookService.clampProgressAfterPdfLoad(bookId, pageCount).then((adjusted) => {
+            if (adjusted && isMountedRef.current) {
+              const clamped = PdfReaderService.clampPage(
+                autoResumeTargetRef.current,
+                pageCount,
+              );
+              if (clamped !== autoResumeTargetRef.current) {
+                setCurrentPage(clamped);
+                currentPageRef.current = clamped;
+                setAutoResumeStatus('fallback');
+              }
+            }
+          });
+        }
       }
 
       if (autoResumeTargetRef.current > 1) {
@@ -386,7 +410,7 @@ export function usePdfReader(bookId: string | undefined): UsePdfReaderResult {
         scheduleFallbackCheck();
       }
     },
-    [clearLoadTimeout, persistTotalPages, scheduleFallbackCheck],
+    [bookId, clearLoadTimeout, persistTotalPages, scheduleFallbackCheck],
   );
 
   const handlePdfPageChanged = useCallback(
@@ -529,6 +553,7 @@ export function usePdfReader(bookId: string | undefined): UsePdfReaderResult {
     autoResumeStatus,
     showLoadingJumpHint,
     errorMessage,
+    pdfMissing,
     goToPageVisible,
     goToPageError,
     pdfRef,

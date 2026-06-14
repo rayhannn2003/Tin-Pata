@@ -11,6 +11,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
+import { BookMissingPdfCard } from '@/components/book/BookMissingPdfCard';
 import { BookAnalyticsCard } from '@/components/book/BookAnalyticsCard';
 import { BookActionsCard } from '@/components/book/BookActionsCard';
 import {
@@ -32,7 +33,8 @@ import { useBookNotes } from '@/features/notes/useBookNotes';
 import { useTranslation } from '@/i18n/useTranslation';
 import { Spacing } from '@/constants/layout';
 import { useThemeColors } from '@/hooks/useColorScheme';
-import { BookService } from '@/services/BookService';
+import { BookService, BookRelinkError } from '@/services/BookService';
+import { PdfAvailabilityService } from '@/services/PdfAvailabilityService';
 import {
   BOOK_CATEGORIES,
   BOOK_PRIORITIES,
@@ -58,6 +60,11 @@ export default function BookDetailScreen() {
   const [categoryPickerVisible, setCategoryPickerVisible] = useState(false);
   const [priorityPickerVisible, setPriorityPickerVisible] = useState(false);
   const [statusPickerVisible, setStatusPickerVisible] = useState(false);
+  const [relinking, setRelinking] = useState(false);
+  const [relinkMessage, setRelinkMessage] = useState<string | null>(null);
+  const [relinkError, setRelinkError] = useState<string | null>(null);
+
+  const pdfMissing = book ? !PdfAvailabilityService.isPdfAvailable(book) : false;
 
   const categoryOptions = useMemo(
     () =>
@@ -90,6 +97,58 @@ export default function BookDetailScreen() {
   const refresh = useCallback(async () => {
     await Promise.all([refreshBook(), refreshStats()]);
   }, [refreshBook, refreshStats]);
+
+  const handleRelink = useCallback(async () => {
+    if (!book) {
+      return;
+    }
+    try {
+      setRelinking(true);
+      setRelinkError(null);
+      setRelinkMessage(null);
+      const result = await BookService.relinkPdf(book.id);
+      if (!result) {
+        return;
+      }
+      if (result.pageAdjusted) {
+        setRelinkMessage(t('pdfMissing.pageAdjusted'));
+      } else {
+        setRelinkMessage(t('pdfMissing.relinkSuccess'));
+      }
+      await refresh();
+    } catch (err) {
+      setRelinkError(
+        err instanceof BookRelinkError ? err.message : t('pdfMissing.relinkFailed'),
+      );
+    } finally {
+      setRelinking(false);
+    }
+  }, [book, refresh, t]);
+
+  const handleOpenReader = useCallback(() => {
+    if (!book) {
+      return;
+    }
+    if (pdfMissing) {
+      void handleRelink();
+      return;
+    }
+    router.push(`/reader/${book.id}`);
+  }, [book, handleRelink, pdfMissing, router]);
+
+  const handleOpenAnnotation = useCallback(
+    (pageNumber: number) => {
+      if (!book) {
+        return;
+      }
+      if (pdfMissing) {
+        void handleRelink();
+        return;
+      }
+      void openReaderAtPage(router, book.id, pageNumber, t);
+    },
+    [book, handleRelink, pdfMissing, router, t],
+  );
 
   const handleDelete = () => {
     if (!book) {
@@ -168,10 +227,28 @@ export default function BookDetailScreen() {
             onEditPriority={() => setPriorityPickerVisible(true)}
             onEditStatus={() => setStatusPickerVisible(true)}
           />
-          <Button
-            label={t('bookDetail.continueReading')}
-            onPress={() => router.push(`/reader/${book.id}`)}
-          />
+          {pdfMissing ? (
+            <BookMissingPdfCard
+              relinking={relinking}
+              onRelink={() => void handleRelink()}
+              onKeepMetadata={() => setRelinkMessage(t('pdfMissing.progressPreserved'))}
+            />
+          ) : (
+            <Button
+              label={t('bookDetail.continueReading')}
+              onPress={handleOpenReader}
+            />
+          )}
+          {relinkMessage ? (
+            <ThemedText variant="caption" style={{ color: colors.tint }}>
+              {relinkMessage}
+            </ThemedText>
+          ) : null}
+          {relinkError ? (
+            <ThemedText variant="caption" style={{ color: colors.danger }}>
+              {relinkError}
+            </ThemedText>
+          ) : null}
         </View>
 
         <View style={styles.section}>
@@ -182,7 +259,7 @@ export default function BookDetailScreen() {
               router.push({ pathname: '/notes', params: { bookId: book.id } })
             }
             onOpenNote={(note) => {
-              void openReaderAtPage(router, book.id, note.pageNumber);
+              void handleOpenAnnotation(note.pageNumber);
             }}
           />
         </View>
@@ -195,7 +272,7 @@ export default function BookDetailScreen() {
               router.push({ pathname: '/bookmarks', params: { bookId: book.id } })
             }
             onOpenBookmark={(bookmark) => {
-              void openReaderAtPage(router, book.id, bookmark.pageNumber);
+              void handleOpenAnnotation(bookmark.pageNumber);
             }}
           />
         </View>

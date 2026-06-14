@@ -20,10 +20,12 @@ import { HideScreenHeader } from '@/components/ui/HideScreenHeader';
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { ThemedText } from '@/components/ui/ThemedText';
 import { useLibrary, type LibraryBook } from '@/features/books/useLibrary';
-import { BookService } from '@/services/BookService';
+import { BookService, BookRelinkError } from '@/services/BookService';
+import { PdfAvailabilityService } from '@/services/PdfAvailabilityService';
 import { useTranslation } from '@/i18n/useTranslation';
 import { Spacing } from '@/constants/layout';
 import { useThemeColors } from '@/hooks/useColorScheme';
+import { openReaderForBook } from '@/utils/readerNavigation';
 import {
   BOOK_CATEGORIES,
   BOOK_PRIORITIES,
@@ -133,12 +135,41 @@ export default function LibraryScreen() {
   };
 
   const handleBookMenu = (book: LibraryBook) => {
-    Alert.alert(book.title, t('library.chooseAction'), [
+    const missingPdf = !PdfAvailabilityService.isPdfAvailable(book);
+    const actions: {
+      text: string;
+      style?: 'default' | 'cancel' | 'destructive';
+      onPress?: () => void;
+    }[] = [
       { text: t('common.cancel'), style: 'cancel' },
       {
         text: t('library.rename'),
         onPress: () => setRenameBook(book),
       },
+    ];
+
+    if (missingPdf) {
+      actions.push({
+        text: t('pdfMissing.relink'),
+        onPress: () => {
+          void (async () => {
+            try {
+              const result = await BookService.relinkPdf(book.id);
+              if (result) {
+                await refresh();
+              }
+            } catch (err) {
+              Alert.alert(
+                t('pdfMissing.relinkFailed'),
+                err instanceof BookRelinkError ? err.message : t('settings.importError'),
+              );
+            }
+          })();
+        },
+      });
+    }
+
+    actions.push(
       {
         text: t('library.setCategory'),
         onPress: () => {
@@ -185,7 +216,9 @@ export default function LibraryScreen() {
         style: 'destructive',
         onPress: () => handleDelete(book.id, book.title),
       },
-    ]);
+    );
+
+    Alert.alert(book.title, t('library.chooseAction'), actions);
   };
 
   const handleRename = async (title: string) => {
@@ -371,7 +404,10 @@ export default function LibraryScreen() {
                 onPress={() =>
                   router.push({ pathname: '/book/[bookId]', params: { bookId: book.id } })
                 }
-                onContinue={() => router.push(`/reader/${book.id}`)}
+                onContinue={() => void openReaderForBook(router, book.id, t)}
+                onRelink={() =>
+                  router.push({ pathname: '/book/[bookId]', params: { bookId: book.id } })
+                }
                 onMenu={() => handleBookMenu(book)}
                 deleting={deletingId === book.id}
               />

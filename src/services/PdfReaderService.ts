@@ -1,13 +1,17 @@
 import { fileExists, fileExistsForBook, getLocalPdfUri } from '@/storage/pdfStorage';
+import { PdfAvailabilityService } from '@/services/PdfAvailabilityService';
 import type { Book } from '@/types';
 
 export const PAGE_SAVE_DEBOUNCE_MS = 450;
 export const PDF_LOAD_TIMEOUT_MS = 20_000;
 
 export class PdfReaderError extends Error {
-  constructor(message: string) {
+  readonly code: 'pdf_missing' | 'generic';
+
+  constructor(message: string, code: 'pdf_missing' | 'generic' = 'generic') {
     super(message);
     this.name = 'PdfReaderError';
+    this.code = code;
   }
 }
 
@@ -81,13 +85,8 @@ export const PdfReaderService = {
     if (!book) {
       throw new PdfReaderError('Book not found.');
     }
-    if (!book.localUri) {
-      throw new PdfReaderError('This book has no local file path.');
-    }
-    if (!fileExistsForBook(book.id) && !fileExists(book.localUri)) {
-      throw new PdfReaderError(
-        'Local PDF file is missing. You may need to import it again.',
-      );
+    if (!PdfAvailabilityService.isPdfAvailable(book)) {
+      throw new PdfReaderError('PDF file is missing.', 'pdf_missing');
     }
     return book;
   },

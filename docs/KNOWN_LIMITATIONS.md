@@ -36,7 +36,7 @@ Details: [READER_KNOWN_LIMITATIONS.md](./READER_KNOWN_LIMITATIONS.md)
 |------------|--------|
 | **PDFs not in JSON backup** | Export includes books metadata, sessions, notes, bookmarks, goals, reflections, and portable settings — **not PDF file bytes**. Copy PDFs separately. |
 | **Restore requires local PDFs** | After import, books need matching PDF files at stored paths or re-import. |
-| **No cloud backup** | Backup is manual JSON export via share sheet only. |
+| **No cloud backup** | Backup is manual JSON export via share sheet only. See [BACKUP_AND_RESTORE.md](./BACKUP_AND_RESTORE.md). |
 | **Old backups compatible** | v1.2 adds `category` and `priority` on books; missing fields default on import. |
 
 ---

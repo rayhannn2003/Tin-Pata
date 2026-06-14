@@ -89,7 +89,7 @@ export default function BookmarksScreen() {
                 bookmark={item}
                 showBookTitle={!bookId}
                 onPress={() => {
-                  void openReaderAtPage(router, item.bookId, item.pageNumber);
+                  void openReaderAtPage(router, item.bookId, item.pageNumber, t);
                 }}
               />
             )}

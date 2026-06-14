@@ -13,7 +13,9 @@ import {
   formatPageProgress,
   formatReadingProgressPercent,
 } from '@/utils/format';
+import { PdfAvailabilityService } from '@/services/PdfAvailabilityService';
 import { PdfReaderService } from '@/services/PdfReaderService';
+import { openReaderForBook } from '@/utils/readerNavigation';
 
 interface ContinueReadingCardProps {
   book: Book;
@@ -22,6 +24,7 @@ interface ContinueReadingCardProps {
 export function ContinueReadingCard({ book }: ContinueReadingCardProps) {
   const router = useRouter();
   const { t } = useTranslation();
+  const pdfMissing = !PdfAvailabilityService.isPdfAvailable(book);
   const progressRatio = PdfReaderService.computeProgressRatio(book.currentPage, book.totalPages);
   const progressPercent = formatReadingProgressPercent(book.currentPage, book.totalPages);
 
@@ -40,10 +43,23 @@ export function ContinueReadingCard({ book }: ContinueReadingCardProps) {
       <ThemedText variant="caption" secondary>
         {formatLastReadDate(book.updatedAt)}
       </ThemedText>
+      {pdfMissing ? (
+        <ThemedText variant="caption" secondary>
+          {t('pdfMissing.badge')}
+        </ThemedText>
+      ) : null}
       {book.totalPages > 0 ? <ProgressBar progress={progressRatio} /> : null}
       <View style={styles.actions}>
         <View style={styles.primaryAction}>
-          <Button label={t('common.continue')} onPress={() => router.push(`/reader/${book.id}`)} />
+          <Button
+            label={pdfMissing ? t('pdfMissing.relink') : t('common.continue')}
+            onPress={() =>
+              pdfMissing
+                ? router.push({ pathname: '/book/[bookId]', params: { bookId: book.id } })
+                : void openReaderForBook(router, book.id, t)
+            }
+            variant={pdfMissing ? 'secondary' : 'primary'}
+          />
         </View>
         <View style={styles.secondaryAction}>
           <Button

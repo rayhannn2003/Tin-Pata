@@ -13,16 +13,22 @@ import { NoteRepository } from '@/db/repositories/NoteRepository';
 import { ReflectionRepository } from '@/db/repositories/ReflectionRepository';
 import { SessionRepository } from '@/db/repositories/SessionRepository';
 import { SettingsRepository } from '@/db/repositories/SettingsRepository';
-import { APP_NAME_BN } from '@/constants/brand';
+import { APP_NAME_EN } from '@/constants/brand';
 import { NOTIFICATION_SETTING_KEYS } from '@/types/notification';
 import { LAST_BACKUP_AT_KEY, PORTABLE_READER_SETTING_KEYS } from '@/types/reader';
 import {
   BACKUP_EXPORT_VERSION,
+  BackupError,
+  createEmptyImportResult,
   normalizeBookFromBackup,
+  validateBackupJson,
+  type BackupBookRecord,
   type BackupPayload,
-  type BackupValidationResult,
+  type ImportMode,
+  type ImportResult,
 } from '@/types/backup';
-import type { Book, Bookmark, DailyGoal, Note, ReadingSession } from '@/types';
+import { PdfAvailabilityService } from '@/services/PdfAvailabilityService';
+import type { Book, Bookmark, DailyGoal, Note, ReadingSession, Reflection } from '@/types';
 
 const PORTABLE_SETTING_KEYS = new Set<string>([
   'app_language',
@@ -128,6 +134,49 @@ async function clearAllDataInTransaction(db: SQLiteDatabase): Promise<void> {
   `);
 }
 
+async function loadExistingIds(table: string): Promise<Set<string>> {
+  return withDatabase(async (db) => {
+    const rows = await db.getAllAsync<{ id: string }>(`SELECT id FROM ${table}`);
+    return new Set(rows.map((row) => row.id));
+  });
+}
+
+function resolveBookDownloadState(book: BackupBookRecord): {
+  book: Book;
+  missingPdf: boolean;
+} {
+  const prepared = normalizeBookFromBackup({
+    ...book,
+    cloudinaryPublicId: null,
+    cloudinaryAssetId: null,
+    isUploaded: false,
+    isDownloaded: PdfAvailabilityService.isPdfAvailable(book),
+  });
+
+  return {
+    book: prepared,
+    missingPdf: !PdfAvailabilityService.isPdfAvailable(prepared),
+  };
+}
+
+async function cancelReaderNotificationsQuietly(): Promise<void> {
+  try {
+    const { NotificationService } = await import('@/services/NotificationService');
+    await NotificationService.cancelAllQuietReaderNotifications();
+  } catch {
+    // Native module may be unavailable.
+  }
+}
+
+async function rescheduleNotificationsFromSettings(): Promise<void> {
+  try {
+    const { NotificationService } = await import('@/services/NotificationService');
+    await NotificationService.rescheduleAllFromSettings();
+  } catch {
+    // Reminders rescheduled on next save.
+  }
+}
+
 export const BackupService = {
   async createBackupPayload(): Promise<BackupPayload> {
     const [books, sessions, bookmarks, notes, goals, reflections, allSettings] =
@@ -142,12 +191,15 @@ export const BackupService = {
       ]);
 
     const settings = allSettings.filter((s) => shouldIncludeSetting(s.key));
+    const exportedAt = new Date().toISOString();
+    const appVersion = Constants.expoConfig?.version ?? '1.3.0';
 
     return {
-      app_version: Constants.expoConfig?.version ?? '1.1.4',
-      export_version: BACKUP_EXPORT_VERSION,
-      exported_at: new Date().toISOString(),
-      app_name: APP_NAME_BN,
+      appName: APP_NAME_EN,
+      backupVersion: BACKUP_EXPORT_VERSION,
+      appVersion,
+      exportedAt,
+      platform: Platform.OS,
       books: books.map(stripCloudFields),
       reading_sessions: sessions,
       bookmarks,
@@ -156,50 +208,21 @@ export const BackupService = {
       reflections,
       settings,
       pdf_files_included: false,
+      app_name: APP_NAME_EN,
+      export_version: BACKUP_EXPORT_VERSION,
+      exported_at: exportedAt,
+      app_version: appVersion,
     };
   },
 
-  validateBackupJson(raw: unknown): BackupValidationResult {
-    const errors: string[] = [];
+  validateBackupJson,
 
-    if (!raw || typeof raw !== 'object') {
-      return { valid: false, errors: ['Invalid JSON structure.'] };
-    }
-
-    const data = raw as Record<string, unknown>;
-
-    if (data.export_version !== BACKUP_EXPORT_VERSION) {
-      errors.push(`Unsupported export version: ${String(data.export_version)}`);
-    }
-
-    for (const field of [
-      'books',
-      'reading_sessions',
-      'bookmarks',
-      'notes',
-      'daily_goals',
-      'reflections',
-      'settings',
-    ] as const) {
-      if (!Array.isArray(data[field])) {
-        errors.push(`Missing or invalid field: ${field}`);
-      }
-    }
-
-    if (data.pdf_files_included === true) {
-      errors.push('PDF-included backups are not supported.');
-    }
-
-    if (errors.length > 0) {
-      return { valid: false, errors };
-    }
-
-    return { valid: true, errors: [], payload: data as unknown as BackupPayload };
-  },
-
-  async parseBackupFromPicker(): Promise<BackupPayload> {
+  async pickAndValidateBackup(): Promise<{
+    payload: BackupPayload;
+    warnings: ImportResult['warnings'];
+  }> {
     if (Platform.OS === 'web') {
-      throw new Error('Import is not available on web preview.');
+      throw new BackupError('import_failed', 'Import is not available on web preview.');
     }
 
     const result = await DocumentPicker.getDocumentAsync({
@@ -208,7 +231,7 @@ export const BackupService = {
     });
 
     if (result.canceled || !result.assets?.[0]?.uri) {
-      throw new Error('Import cancelled.');
+      throw new BackupError('import_cancelled');
     }
 
     const importFile = new File(result.assets[0].uri);
@@ -218,20 +241,29 @@ export const BackupService = {
     try {
       parsed = JSON.parse(content) as unknown;
     } catch {
-      throw new Error('File is not valid JSON.');
+      throw new BackupError('invalid_json');
     }
 
-    const validation = this.validateBackupJson(parsed);
+    const validation = validateBackupJson(parsed);
     if (!validation.valid || !validation.payload) {
-      throw new Error(validation.errors.join('\n'));
+      throw new BackupError(validation.errors[0] ?? 'invalid_structure');
     }
 
-    return validation.payload;
+    return {
+      payload: validation.payload,
+      warnings: validation.warnings,
+    };
+  },
+
+  /** @deprecated Use pickAndValidateBackup */
+  async parseBackupFromPicker(): Promise<BackupPayload> {
+    const { payload } = await this.pickAndValidateBackup();
+    return payload;
   },
 
   async exportData(): Promise<string> {
     if (Platform.OS === 'web') {
-      throw new Error('Export is not available on web preview.');
+      throw new BackupError('import_failed', 'Export is not available on web preview.');
     }
 
     const payload = await this.createBackupPayload();
@@ -240,7 +272,7 @@ export const BackupService = {
     const file = new File(Paths.cache, fileName);
     file.write(json);
 
-    await SettingsRepository.set(LAST_BACKUP_AT_KEY, payload.exported_at);
+    await SettingsRepository.set(LAST_BACKUP_AT_KEY, payload.exportedAt);
 
     const canShare = await Sharing.isAvailableAsync();
     if (canShare) {
@@ -258,83 +290,246 @@ export const BackupService = {
     return SettingsRepository.get(LAST_BACKUP_AT_KEY);
   },
 
+  async importBackup(payload: BackupPayload, mode: ImportMode): Promise<ImportResult> {
+    if (mode === 'replace') {
+      return this.replaceDataFromBackup(payload);
+    }
+    return this.mergeDataFromBackup(payload);
+  },
+
+  /** @deprecated Use importBackup(payload, 'replace') */
   async importDataFromFile(): Promise<BackupPayload> {
-    const payload = await this.parseBackupFromPicker();
+    const { payload } = await this.pickAndValidateBackup();
     await this.replaceDataFromBackup(payload);
     return payload;
   },
 
-  async replaceDataFromBackup(payload: BackupPayload): Promise<void> {
-    const validation = this.validateBackupJson(payload);
-    if (!validation.valid) {
-      throw new Error(validation.errors.join('\n'));
+  async replaceDataFromBackup(payload: BackupPayload): Promise<ImportResult> {
+    const validation = validateBackupJson(payload);
+    if (!validation.valid || !validation.payload) {
+      throw new BackupError(validation.errors[0] ?? 'invalid_structure');
     }
 
-    try {
-      const { NotificationService } = await import('@/services/NotificationService');
-      await NotificationService.cancelAllQuietReaderNotifications();
-    } catch {
-      // Native module may be unavailable.
-    }
+    const normalized = validation.payload;
+    const result = createEmptyImportResult('replace');
+    result.warnings = [...validation.warnings];
+
+    await cancelReaderNotificationsQuietly();
 
     await withDatabase(async (db) => {
       await db.withTransactionAsync(async () => {
         await clearAllDataInTransaction(db);
 
-        for (const book of payload.books) {
-          let isDownloaded = book.isDownloaded;
-          if (book.localUri) {
-            try {
-              isDownloaded = new File(book.localUri).exists;
-            } catch {
-              isDownloaded = false;
-            }
+        for (const book of normalized.books) {
+          const { book: prepared, missingPdf } = resolveBookDownloadState(book);
+          if (missingPdf) {
+            result.missingPdfCount += 1;
           }
-
-          await BookRepository.createBook(
-            normalizeBookFromBackup({
-              ...book,
-              isDownloaded,
-              cloudinaryPublicId: null,
-              cloudinaryAssetId: null,
-              isUploaded: false,
-            }),
-          );
+          await BookRepository.createBook(prepared);
+          result.booksImported += 1;
         }
 
-        for (const session of payload.reading_sessions) {
+        const bookIds = new Set(normalized.books.map((book) => book.id));
+
+        for (const session of normalized.reading_sessions) {
+          if (!bookIds.has(session.bookId)) {
+            result.sessionsSkipped += 1;
+            continue;
+          }
           await SessionRepository.createSession(session as ReadingSession);
+          result.sessionsImported += 1;
         }
 
-        for (const bookmark of payload.bookmarks) {
+        for (const bookmark of normalized.bookmarks) {
+          if (!bookIds.has(bookmark.bookId)) {
+            result.bookmarksSkipped += 1;
+            continue;
+          }
           await BookmarkRepository.createBookmark(bookmark as Bookmark);
+          result.bookmarksImported += 1;
         }
 
-        for (const note of payload.notes) {
+        for (const note of normalized.notes) {
+          if (!bookIds.has(note.bookId)) {
+            result.notesSkipped += 1;
+            continue;
+          }
           await NoteRepository.createNote(note as Note);
+          result.notesImported += 1;
         }
 
-        for (const goal of payload.daily_goals) {
+        for (const goal of normalized.daily_goals) {
           await GoalRepository.createGoal(goal as DailyGoal);
+          result.goalsImported += 1;
         }
 
-        for (const reflection of payload.reflections) {
+        for (const reflection of normalized.reflections) {
           await ReflectionRepository.createReflection(reflection);
+          result.reflectionsImported += 1;
         }
 
-        for (const setting of payload.settings) {
+        for (const setting of normalized.settings) {
           if (shouldIncludeSetting(setting.key)) {
             await SettingsRepository.set(setting.key, setting.value);
+            result.settingsImported += 1;
+          } else {
+            result.settingsSkipped += 1;
           }
         }
       });
     });
 
-    try {
-      const { NotificationService } = await import('@/services/NotificationService');
-      await NotificationService.rescheduleAllFromSettings();
-    } catch {
-      // Reminders rescheduled on next save.
+    await rescheduleNotificationsFromSettings();
+    result.hadWarnings =
+      result.warnings.length > 0 ||
+      result.missingPdfCount > 0 ||
+      result.sessionsSkipped > 0 ||
+      result.notesSkipped > 0 ||
+      result.bookmarksSkipped > 0;
+
+    if (result.hadWarnings && !result.warnings.includes('import_partial')) {
+      result.warnings.push('import_partial');
     }
+
+    return result;
+  },
+
+  async mergeDataFromBackup(payload: BackupPayload): Promise<ImportResult> {
+    const validation = validateBackupJson(payload);
+    if (!validation.valid || !validation.payload) {
+      throw new BackupError(validation.errors[0] ?? 'invalid_structure');
+    }
+
+    const normalized = validation.payload;
+    const result = createEmptyImportResult('merge');
+    result.warnings = [...validation.warnings];
+
+    const [
+      existingBookIds,
+      existingSessionIds,
+      existingBookmarkIds,
+      existingNoteIds,
+      existingGoalIds,
+      existingReflectionIds,
+      allSettings,
+    ] = await Promise.all([
+      loadExistingIds('books'),
+      loadExistingIds('reading_sessions'),
+      loadExistingIds('bookmarks'),
+      loadExistingIds('notes'),
+      loadExistingIds('daily_goals'),
+      loadExistingIds('reflections'),
+      SettingsRepository.getAll(),
+    ]);
+
+    const existingSettingKeys = new Set(allSettings.map((setting) => setting.key));
+
+    const bookIds = new Set(existingBookIds);
+
+    await withDatabase(async (db) => {
+      await db.withTransactionAsync(async () => {
+        for (const book of normalized.books) {
+          if (existingBookIds.has(book.id)) {
+            result.booksSkipped += 1;
+            continue;
+          }
+          const { book: prepared, missingPdf } = resolveBookDownloadState(book);
+          if (missingPdf) {
+            result.missingPdfCount += 1;
+          }
+          await BookRepository.createBook(prepared);
+          bookIds.add(book.id);
+          result.booksImported += 1;
+        }
+
+        for (const session of normalized.reading_sessions) {
+          if (existingSessionIds.has(session.id)) {
+            result.sessionsSkipped += 1;
+            continue;
+          }
+          if (!bookIds.has(session.bookId)) {
+            result.sessionsSkipped += 1;
+            continue;
+          }
+          await SessionRepository.createSession(session as ReadingSession);
+          result.sessionsImported += 1;
+        }
+
+        for (const bookmark of normalized.bookmarks) {
+          if (existingBookmarkIds.has(bookmark.id)) {
+            result.bookmarksSkipped += 1;
+            continue;
+          }
+          if (!bookIds.has(bookmark.bookId)) {
+            result.bookmarksSkipped += 1;
+            continue;
+          }
+          await BookmarkRepository.createBookmark(bookmark as Bookmark);
+          result.bookmarksImported += 1;
+        }
+
+        for (const note of normalized.notes) {
+          if (existingNoteIds.has(note.id)) {
+            result.notesSkipped += 1;
+            continue;
+          }
+          if (!bookIds.has(note.bookId)) {
+            result.notesSkipped += 1;
+            continue;
+          }
+          await NoteRepository.createNote(note as Note);
+          result.notesImported += 1;
+        }
+
+        for (const goal of normalized.daily_goals) {
+          if (existingGoalIds.has(goal.id)) {
+            result.goalsSkipped += 1;
+            continue;
+          }
+          await GoalRepository.createGoal(goal as DailyGoal);
+          result.goalsImported += 1;
+        }
+
+        for (const reflection of normalized.reflections) {
+          if (existingReflectionIds.has(reflection.id)) {
+            result.reflectionsSkipped += 1;
+            continue;
+          }
+          await ReflectionRepository.createReflection(reflection);
+          result.reflectionsImported += 1;
+        }
+
+        for (const setting of normalized.settings) {
+          if (!shouldIncludeSetting(setting.key)) {
+            result.settingsSkipped += 1;
+            continue;
+          }
+          if (existingSettingKeys.has(setting.key)) {
+            result.settingsSkipped += 1;
+            continue;
+          }
+          await SettingsRepository.set(setting.key, setting.value);
+          result.settingsImported += 1;
+        }
+      });
+    });
+
+    await rescheduleNotificationsFromSettings();
+
+    result.hadWarnings =
+      result.warnings.length > 0 ||
+      result.missingPdfCount > 0 ||
+      result.booksSkipped > 0 ||
+      result.sessionsSkipped > 0 ||
+      result.notesSkipped > 0 ||
+      result.bookmarksSkipped > 0 ||
+      result.goalsSkipped > 0 ||
+      result.reflectionsSkipped > 0;
+
+    if (result.hadWarnings && !result.warnings.includes('import_partial')) {
+      result.warnings.push('import_partial');
+    }
+
+    return result;
   },
 };

@@ -16,12 +16,14 @@ import {
   formatReadingProgressPercent,
 } from '@/utils/format';
 import { categoryLabelKey } from '@/utils/libraryOrganize';
+import { PdfAvailabilityService } from '@/services/PdfAvailabilityService';
 import { PdfReaderService } from '@/services/PdfReaderService';
 
 interface BookListItemProps {
   book: Book & BookAnnotationCounts;
   onPress: () => void;
   onContinue: () => void;
+  onRelink?: () => void;
   onMenu: () => void;
   deleting?: boolean;
 }
@@ -43,11 +45,13 @@ export function BookListItem({
   book,
   onPress,
   onContinue,
+  onRelink,
   onMenu,
   deleting = false,
 }: BookListItemProps) {
   const colors = useThemeColors();
   const { t } = useTranslation();
+  const pdfMissing = !PdfAvailabilityService.isPdfAvailable(book);
 
   const pageLabel = formatPageProgress(book.currentPage, book.totalPages);
   const progressPercent = formatReadingProgressPercent(book.currentPage, book.totalPages);
@@ -116,6 +120,13 @@ export function BookListItem({
                 {t(statusKey(book.status))}
               </ThemedText>
             </View>
+            {pdfMissing ? (
+              <View style={[styles.tagBadge, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <ThemedText variant="caption" secondary>
+                  {t('pdfMissing.badge')}
+                </ThemedText>
+              </View>
+            ) : null}
           </View>
         </View>
 
@@ -143,9 +154,10 @@ export function BookListItem({
 
       <View style={styles.actions}>
         <Button
-          label={t('home.continueReading')}
-          onPress={onContinue}
+          label={pdfMissing ? t('pdfMissing.relink') : t('home.continueReading')}
+          onPress={pdfMissing ? (onRelink ?? onPress) : onContinue}
           disabled={deleting}
+          variant={pdfMissing ? 'secondary' : 'primary'}
         />
       </View>
     </Card>

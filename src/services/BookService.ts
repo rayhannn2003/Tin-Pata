@@ -18,10 +18,24 @@ import { nowIso } from '@/utils/date';
 import { generateId } from '@/utils/ids';
 import { titleFromFileName } from '@/utils/format';
 
+export interface BookRelinkResult {
+  book: Book;
+  pageAdjusted: boolean;
+  previousPage: number;
+  adjustedPage: number;
+}
+
 export class BookImportError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'BookImportError';
+  }
+}
+
+export class BookRelinkError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'BookRelinkError';
   }
 }
 
@@ -170,5 +184,87 @@ export const BookService = {
   /** Re-copy helper if needed later; not used in normal import flow. */
   async copyPdfToStorage(sourceUri: string, bookId: string) {
     return copyPdfToAppStorage(sourceUri, bookId);
+  },
+
+  async relinkPdf(bookId: string): Promise<BookRelinkResult | null> {
+    const book = await BookRepository.getBookById(bookId);
+    if (!book) {
+      throw new BookRelinkError('Book not found.');
+    }
+
+    const picked = await pickPdf();
+    if (!picked) {
+      return null;
+    }
+
+    try {
+      const { localUri, fileSize } = await copyPdfToAppStorage(picked.uri, bookId);
+      const previousPage = book.currentPage;
+      let adjustedPage = previousPage;
+      let pageAdjusted = false;
+
+      if (book.totalPages > 0 && previousPage > book.totalPages) {
+        adjustedPage = book.totalPages;
+        pageAdjusted = true;
+      }
+
+      await BookRepository.updateBook(bookId, {
+        localUri,
+        fileName: picked.name,
+        fileSize: picked.size ?? fileSize,
+        isDownloaded: true,
+        ...(pageAdjusted ? { currentPage: adjustedPage } : {}),
+      });
+
+      const updated = await BookRepository.getBookById(bookId);
+      if (!updated) {
+        throw new BookRelinkError('Could not relink PDF.');
+      }
+
+      return {
+        book: updated,
+        pageAdjusted,
+        previousPage,
+        adjustedPage,
+      };
+    } catch (error) {
+      if (error instanceof BookRelinkError) {
+        throw error;
+      }
+      if (error instanceof Error) {
+        throw new BookRelinkError(error.message);
+      }
+      throw new BookRelinkError('Could not relink PDF.');
+    }
+  },
+
+  async clampProgressAfterPdfLoad(bookId: string, pageCount: number): Promise<boolean> {
+    if (pageCount <= 0) {
+      return false;
+    }
+
+    const book = await BookRepository.getBookById(bookId);
+    if (!book) {
+      return false;
+    }
+
+    const fields: Partial<Book> = {};
+    let adjusted = false;
+
+    if (book.currentPage > pageCount) {
+      fields.currentPage = pageCount;
+      adjusted = true;
+    }
+
+    if (book.totalPages !== pageCount) {
+      fields.totalPages = pageCount;
+    }
+
+    if (Object.keys(fields).length === 0) {
+      return false;
+    }
+
+    await BookRepository.updateBook(bookId, fields);
+    return adjusted;
   },
 };
