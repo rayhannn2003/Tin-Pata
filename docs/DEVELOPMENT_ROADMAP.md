@@ -9,9 +9,10 @@ Phased implementation plan for building the Reading Habit Tracker incrementally.
 | Version | Status | Notes |
 |---------|--------|-------|
 | **v1.0.0** | Shipped | Stable personal APK — core reading habit features |
-| **v1.1.4** | **Current stable** | Reader comfort + stability — see [VERSION_HISTORY.md](./VERSION_HISTORY.md) |
+| **v1.1.4** | Shipped | Reader comfort + stability |
+| **v1.2.0** | **Current stable** | Library organization, notes/bookmarks search, reading insights — see [VERSION_HISTORY.md](./VERSION_HISTORY.md) |
 
-**v1.1.4 QA:** [V1_1_RELEASE_CHECKLIST.md](./V1_1_RELEASE_CHECKLIST.md) · **Limitations:** [KNOWN_LIMITATIONS.md](./KNOWN_LIMITATIONS.md)
+**v1.2.0 QA:** [V1_2_RELEASE_CHECKLIST.md](./V1_2_RELEASE_CHECKLIST.md) · **Limitations:** [KNOWN_LIMITATIONS.md](./KNOWN_LIMITATIONS.md)
 
 ---
 
@@ -370,10 +371,22 @@ After Phase 6, the project is MVP-complete when all items in [Product Requiremen
 
 - Push notification reading reminders
 - PDF text search
-- Reading heatmap calendar
 - Export stats to CSV
 - Multiple notes per page with tags
 - Cover image extraction from PDF
 - Widget for "Continue Reading"
+- Cloud sync / backend backup
 
 Do not implement these unless explicitly requested.
+
+---
+
+## v1.2 shipped (June 2026)
+
+| Area | Delivered |
+|------|-----------|
+| Library | Categories, priority, sort, filter modal |
+| Annotations | Global notes/bookmarks lists + search |
+| Stats | Reading insights card, reorganized sections |
+| Book detail | Analytics card, estimated finish, recent notes/bookmarks |
+| i18n | EN + BN for all v1.2 strings |

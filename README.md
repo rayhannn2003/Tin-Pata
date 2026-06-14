@@ -2,7 +2,7 @@
 
 A personal, offline-first mobile app for building a consistent PDF reading habit. Import your books as PDFs, read them inside the app, track sessions and progress, and recover from reader's block — all stored locally on your device.
 
-**Version 1.1.4** · Personal-use only · No backend · No cloud sync
+**Version 1.2.0** · Personal-use only · No backend · No cloud sync
 
 ---
 
@@ -10,8 +10,10 @@ A personal, offline-first mobile app for building a consistent PDF reading habit
 
 - Import and store PDF books locally
 - In-app PDF reader with safe auto-resume, bookmarks, and page notes
-- Reading sessions, daily goals, streaks, and weekly stats
-- Book detail with per-book stats
+- Library organization: categories, priority, sort, and filters
+- Global notes and bookmarks search
+- Reading sessions, daily goals, streaks, stats, and reading insights
+- Book detail with analytics and estimated finish date
 - Reader comfort: keep awake, brightness, UI visibility toggles
 - Reader's Block Rescue mode
 - Theme picker (System / Light / Dark)
@@ -86,8 +88,9 @@ See [docs/BRAND_ASSETS.md](docs/BRAND_ASSETS.md) for paths and sizes.
 
 | Document | Description |
 |----------|-------------|
-| [Version History](docs/VERSION_HISTORY.md) | v1.0 and v1.1 release notes |
-| [v1.1 Release Checklist](docs/V1_1_RELEASE_CHECKLIST.md) | Final QA sign-off (v1.1.4) |
+| [Version History](docs/VERSION_HISTORY.md) | v1.0, v1.1, and v1.2 release notes |
+| [v1.2 Release Checklist](docs/V1_2_RELEASE_CHECKLIST.md) | Final QA sign-off (v1.2.0) |
+| [v1.1 Release Checklist](docs/V1_1_RELEASE_CHECKLIST.md) | v1.1.4 QA reference |
 | [Known Limitations](docs/KNOWN_LIMITATIONS.md) | Platform, reader, backup constraints |
 | [Reader Known Limitations](docs/READER_KNOWN_LIMITATIONS.md) | PDF stability details |
 | [Reader Stability Checklist](docs/READER_STABILITY_TEST_CHECKLIST.md) | PDF reader QA |

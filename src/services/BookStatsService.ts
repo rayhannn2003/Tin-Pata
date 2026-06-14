@@ -1,7 +1,12 @@
+import { BookRepository } from '@/db/repositories/BookRepository';
 import { SessionRepository } from '@/db/repositories/SessionRepository';
+import { ReadingActivityService } from '@/services/ReadingActivityService';
+import type { Book } from '@/types';
 import type { BookStats, BookStatsWithSessions } from '@/types/bookStats';
+import { getLocalDateKey } from '@/utils/date';
 
 const RECENT_SESSION_LIMIT = 8;
+const MIN_READING_DAYS_FOR_ESTIMATE = 2;
 
 function roundAverage(total: number, count: number): number {
   if (count <= 0) {
@@ -10,9 +15,55 @@ function roundAverage(total: number, count: number): number {
   return Math.round((total / count) * 10) / 10;
 }
 
+function computeFinishEstimate(
+  book: Book,
+  sessions: Awaited<ReturnType<typeof SessionRepository.getSessionsByBookId>>,
+): Pick<
+  BookStats,
+  'canEstimateFinish' | 'estimatedFinishDateKey' | 'estimatedFinishDays' | 'averagePagesPerReadingDay'
+> {
+  const empty = {
+    canEstimateFinish: false,
+    estimatedFinishDateKey: null,
+    estimatedFinishDays: null,
+    averagePagesPerReadingDay: 0,
+  };
+
+  if (book.totalPages <= 0 || sessions.length === 0) {
+    return empty;
+  }
+
+  const remainingPages = Math.max(0, book.totalPages - book.currentPage);
+  if (remainingPages <= 0) {
+    return { ...empty, estimatedFinishDays: 0 };
+  }
+
+  const readingDays = ReadingActivityService.groupSessionsByDateKey(sessions).size;
+  const totalPagesRead = sessions.reduce((sum, s) => sum + s.pagesRead, 0);
+  const averagePagesPerReadingDay = roundAverage(totalPagesRead, readingDays);
+
+  if (readingDays < MIN_READING_DAYS_FOR_ESTIMATE || averagePagesPerReadingDay <= 0) {
+    return { ...empty, averagePagesPerReadingDay };
+  }
+
+  const estimatedFinishDays = Math.ceil(remainingPages / averagePagesPerReadingDay);
+  const finishDate = new Date();
+  finishDate.setDate(finishDate.getDate() + estimatedFinishDays);
+
+  return {
+    canEstimateFinish: true,
+    estimatedFinishDateKey: getLocalDateKey(finishDate),
+    estimatedFinishDays,
+    averagePagesPerReadingDay,
+  };
+}
+
 function buildStatsFromSessions(
+  book: Book,
   sessions: Awaited<ReturnType<typeof SessionRepository.getSessionsByBookId>>,
 ): BookStats {
+  const finishEstimate = computeFinishEstimate(book, sessions);
+
   if (sessions.length === 0) {
     return {
       totalSessions: 0,
@@ -24,6 +75,7 @@ function buildStatsFromSessions(
       firstReadAt: null,
       bestSessionPages: 0,
       bestSessionMinutes: 0,
+      ...finishEstimate,
     };
   }
 
@@ -49,19 +101,32 @@ function buildStatsFromSessions(
     firstReadAt: sorted[sorted.length - 1]?.createdAt ?? null,
     bestSessionPages,
     bestSessionMinutes,
+    ...finishEstimate,
   };
 }
 
 export const BookStatsService = {
   async getBookStats(bookId: string): Promise<BookStats> {
-    const sessions = await SessionRepository.getSessionsByBookId(bookId);
-    return buildStatsFromSessions(sessions);
+    const [book, sessions] = await Promise.all([
+      BookRepository.getBookById(bookId),
+      SessionRepository.getSessionsByBookId(bookId),
+    ]);
+    if (!book) {
+      throw new Error('Book not found.');
+    }
+    return buildStatsFromSessions(book, sessions);
   },
 
   async getBookStatsWithSessions(bookId: string): Promise<BookStatsWithSessions> {
-    const sessions = await SessionRepository.getSessionsByBookId(bookId);
+    const [book, sessions] = await Promise.all([
+      BookRepository.getBookById(bookId),
+      SessionRepository.getSessionsByBookId(bookId),
+    ]);
+    if (!book) {
+      throw new Error('Book not found.');
+    }
     return {
-      ...buildStatsFromSessions(sessions),
+      ...buildStatsFromSessions(book, sessions),
       recentSessions: sessions.slice(0, RECENT_SESSION_LIMIT),
     };
   },

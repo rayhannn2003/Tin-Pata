@@ -2,7 +2,24 @@
 
 Tin Pata (তিনপাতা) — release notes for personal-use builds.
 
-**Current stable:** **v1.1.4** (June 2026)
+**Current stable:** **v1.2.0** (June 2026)
+
+---
+
+## v1.2.0 — Library organization & reading insights
+
+Feature release building on v1.1 reader stability.
+
+**Highlights**
+
+- **Library organization** — categories, reading priority, sort, and improved filters
+- **Notes & bookmarks search** — global lists with search; open reader at page safely
+- **Reading insights** — best day, time range, averages, blockers/mood/focus patterns
+- **Book analytics** — per-book averages, best session, estimated finish date
+- **Stats screen** — reorganized: Today, This Week, All Time, Insights, Habit Calendar
+- English and Bengali for all new labels
+
+**Internal milestones:** v1.2A library organization · v1.2B notes/bookmarks · v1.2C insights & release QA
 
 ---
 
@@ -65,7 +82,7 @@ First complete offline-first personal reading app.
 ## Versioning policy
 
 - **Major (x.0.0):** New product phase or breaking data format
-- **Minor (1.x.0):** Feature releases (v1.1 = reader comfort)
+- **Minor (1.x.0):** Feature releases (v1.2 = library + insights)
 - **Patch (1.1.x):** Stability, comfort, and QA fixes within a minor line
 
-See also: [DEVELOPMENT_ROADMAP.md](./DEVELOPMENT_ROADMAP.md), [V1_1_RELEASE_CHECKLIST.md](./V1_1_RELEASE_CHECKLIST.md)
+See also: [DEVELOPMENT_ROADMAP.md](./DEVELOPMENT_ROADMAP.md), [V1_2_RELEASE_CHECKLIST.md](./V1_2_RELEASE_CHECKLIST.md)

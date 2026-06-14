@@ -3,10 +3,12 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { AppEmptyState } from '@/components/common/AppEmptyState';
 import { SectionHeader } from '@/components/common/SectionHeader';
 import { HabitCalendar } from '@/components/stats/HabitCalendar';
+import { ReadingInsightsCard } from '@/components/stats/ReadingInsightsCard';
 import { HideScreenHeader } from '@/components/ui/HideScreenHeader';
 import { Card } from '@/components/ui/Card';
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { ThemedText } from '@/components/ui/ThemedText';
+import { useReadingInsights } from '@/features/stats/useReadingInsights';
 import { useStreak } from '@/features/streaks/useStreak';
 import { useWeeklyStats } from '@/features/stats/useWeeklyStats';
 import { useReadingStats } from '@/features/sessions/useReadingStats';
@@ -33,8 +35,9 @@ export default function StatsScreen() {
   const { stats, loading: statsLoading } = useReadingStats();
   const { streak, loading: streakLoading } = useStreak();
   const { weekly, loading: weeklyLoading } = useWeeklyStats();
+  const { insights, loading: insightsLoading } = useReadingInsights();
 
-  const loading = statsLoading || streakLoading || weeklyLoading;
+  const loading = statsLoading || streakLoading || weeklyLoading || insightsLoading;
   const hasData = stats.totalSessions > 0;
 
   return (
@@ -77,6 +80,10 @@ export default function StatsScreen() {
                   value={String(weekly.completedGoalDaysThisWeek)}
                 />
               </View>
+              <View style={styles.row}>
+                <StatCard label={t('stats.current')} value={String(streak.currentStreak)} />
+                <StatCard label={t('stats.longest')} value={String(streak.longestStreak)} />
+              </View>
               {weekly.bestReadingDay ? (
                 <Card muted style={styles.noteCard}>
                   <ThemedText variant="caption" secondary>
@@ -90,29 +97,22 @@ export default function StatsScreen() {
             </View>
 
             <View style={styles.section}>
-              <SectionHeader title={t('stats.streak')} />
-              <View style={styles.row}>
-                <StatCard label={t('stats.current')} value={String(streak.currentStreak)} />
-                <StatCard label={t('stats.longest')} value={String(streak.longestStreak)} />
-              </View>
-              <Card muted style={styles.noteCard}>
-                <ThemedText variant="caption" style={{ color: colors.tint }}>
-                  {streak.recoveryMessage}
-                </ThemedText>
-              </Card>
-            </View>
-
-            <View style={styles.section}>
-              <HabitCalendar days={weekly.habitCalendar} />
-            </View>
-
-            <View style={styles.section}>
               <SectionHeader title={t('stats.allTime')} />
               <View style={styles.row}>
                 <StatCard label={t('stats.sessions')} value={String(stats.totalSessions)} />
                 <StatCard label={t('stats.minutes')} value={String(stats.totalMinutes)} />
               </View>
               <StatCard label={t('stats.totalPages')} value={String(stats.totalPages)} />
+            </View>
+
+            <View style={styles.section}>
+              <SectionHeader title={t('stats.insights')} subtitle={t('stats.insightsSubtitle')} />
+              <ReadingInsightsCard insights={insights} />
+            </View>
+
+            <View style={styles.section}>
+              <SectionHeader title={t('stats.habitCalendar')} />
+              <HabitCalendar days={weekly.habitCalendar} />
             </View>
           </>
         )}

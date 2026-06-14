@@ -7,6 +7,7 @@ import type {
   Reflection,
   Setting,
 } from '@/types';
+import { parseBookCategory, parseBookPriority } from '@/types/bookOrganization';
 
 /** Backup file format version — bump when schema changes. */
 export const BACKUP_EXPORT_VERSION = 1;
@@ -48,6 +49,15 @@ export interface BackupPreview {
   exportedAt: string;
   appVersion: string;
   exportVersion: number;
+}
+
+/** Ensures category/priority from older backups get safe defaults. */
+export function normalizeBookFromBackup(raw: BackupBookRecord): Book {
+  return {
+    ...raw,
+    category: parseBookCategory(raw.category),
+    priority: parseBookPriority(raw.priority),
+  };
 }
 
 export function buildBackupPreview(payload: BackupPayload): BackupPreview {

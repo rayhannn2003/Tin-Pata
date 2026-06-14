@@ -75,6 +75,20 @@ function RootStack() {
             animation: 'slide_from_bottom',
           }}
         />
+        <Stack.Screen
+          name="notes/index"
+          options={{
+            headerShown: false,
+            presentation: 'card',
+          }}
+        />
+        <Stack.Screen
+          name="bookmarks/index"
+          options={{
+            headerShown: false,
+            presentation: 'card',
+          }}
+        />
       </Stack>
     </>
   );

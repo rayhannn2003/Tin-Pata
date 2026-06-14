@@ -3,11 +3,10 @@ import { Platform } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 
 import { BookService } from '@/services/BookService';
-import type { Book, BookAnnotationCounts, BookStatus } from '@/types';
+import type { Book, BookAnnotationCounts } from '@/types';
+import type { LibraryStatusFilter } from '@/types/bookOrganization';
 
 export type LibraryBook = Book & BookAnnotationCounts;
-
-export type LibraryFilter = 'all' | BookStatus;
 
 export function useLibrary() {
   const [books, setBooks] = useState<LibraryBook[]>([]);
@@ -16,7 +15,6 @@ export function useLibrary() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [filter, setFilter] = useState<LibraryFilter>('all');
 
   const loadBooks = useCallback(async () => {
     if (Platform.OS === 'web') {
@@ -83,19 +81,14 @@ export function useLibrary() {
     [loadBooks],
   );
 
-  const filteredBooks =
-    filter === 'all' ? books : books.filter((book) => book.status === filter);
-
   return {
-    books: filteredBooks,
+    books,
     totalCount: books.length,
     loading,
     importing,
     deletingId,
     error,
     successMessage,
-    filter,
-    setFilter,
     importPdf,
     deleteBook,
     refresh: loadBooks,

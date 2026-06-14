@@ -8,6 +8,12 @@ import {
   pickPdf,
 } from '@/storage/pdfStorage';
 import type { Book, BookAnnotationCounts, BookStatus } from '@/types';
+import {
+  DEFAULT_BOOK_CATEGORY,
+  DEFAULT_BOOK_PRIORITY,
+  type BookCategory,
+  type BookPriority,
+} from '@/types/bookOrganization';
 import { nowIso } from '@/utils/date';
 import { generateId } from '@/utils/ids';
 import { titleFromFileName } from '@/utils/format';
@@ -44,6 +50,8 @@ export const BookService = {
         totalPages: 0,
         currentPage: 1,
         status: 'reading',
+        category: DEFAULT_BOOK_CATEGORY,
+        priority: DEFAULT_BOOK_PRIORITY,
         isUploaded: false,
         isDownloaded: true,
         createdAt: now,
@@ -116,6 +124,14 @@ export const BookService = {
 
   async updateBookStatus(id: string, status: BookStatus): Promise<void> {
     await BookRepository.updateStatus(id, status);
+  },
+
+  async updateBookCategory(id: string, category: BookCategory): Promise<void> {
+    await BookRepository.updateCategory(id, category);
+  },
+
+  async updateBookPriority(id: string, priority: BookPriority): Promise<void> {
+    await BookRepository.updatePriority(id, priority);
   },
 
   async updateProgress(

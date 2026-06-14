@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -11,27 +11,38 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
+import { BookAnalyticsCard } from '@/components/book/BookAnalyticsCard';
 import { BookActionsCard } from '@/components/book/BookActionsCard';
+import {
+  BookRecentBookmarksCard,
+  BookRecentNotesCard,
+} from '@/components/book/BookAnnotationsSection';
+import { BookMetaCard } from '@/components/book/BookMetaCard';
 import { BookStatsCard } from '@/components/book/BookStatsCard';
 import { RecentSessionsList } from '@/components/book/RecentSessionsList';
 import { BookVisual } from '@/components/library/BookVisual';
+import { BookOptionPickerModal } from '@/components/library/BookOptionPickerModal';
 import { BookRenameModal } from '@/components/library/BookRenameModal';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ThemedText } from '@/components/ui/ThemedText';
 import { useBook } from '@/features/books/useBook';
 import { useBookStats } from '@/features/books/useBookStats';
+import { useBookmarks } from '@/features/bookmarks/useBookmarks';
+import { useBookNotes } from '@/features/notes/useBookNotes';
 import { useTranslation } from '@/i18n/useTranslation';
 import { Spacing } from '@/constants/layout';
 import { useThemeColors } from '@/hooks/useColorScheme';
 import { BookService } from '@/services/BookService';
 import {
-  formatLastReadDate,
-  formatPageProgress,
-  formatReadingProgressPercent,
-} from '@/utils/format';
-import { PdfReaderService } from '@/services/PdfReaderService';
+  BOOK_CATEGORIES,
+  BOOK_PRIORITIES,
+  type BookCategory,
+  type BookPriority,
+} from '@/types/bookOrganization';
+import type { BookStatus } from '@/types';
+import { categoryLabelKey } from '@/utils/libraryOrganize';
+import { formatLastReadDate } from '@/utils/format';
+import { openReaderAtPage } from '@/utils/readerNavigation';
 
 export default function BookDetailScreen() {
   const { bookId } = useLocalSearchParams<{ bookId: string }>();
@@ -40,8 +51,41 @@ export default function BookDetailScreen() {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const { book, loading: bookLoading, refresh: refreshBook } = useBook(bookId);
-  const { stats, counts, loading: statsLoading, refresh: refreshStats } = useBookStats(bookId);
+  const { stats, loading: statsLoading, refresh: refreshStats } = useBookStats(bookId);
+  const { notes, loading: notesLoading } = useBookNotes(bookId);
+  const { bookmarks, loading: bookmarksLoading } = useBookmarks(bookId);
   const [renameVisible, setRenameVisible] = useState(false);
+  const [categoryPickerVisible, setCategoryPickerVisible] = useState(false);
+  const [priorityPickerVisible, setPriorityPickerVisible] = useState(false);
+  const [statusPickerVisible, setStatusPickerVisible] = useState(false);
+
+  const categoryOptions = useMemo(
+    () =>
+      BOOK_CATEGORIES.map((value) => ({
+        value,
+        label: t(categoryLabelKey(value)),
+      })),
+    [t],
+  );
+
+  const priorityOptions = useMemo(
+    () =>
+      BOOK_PRIORITIES.map((value) => ({
+        value,
+        label: t(`library.priority.${value}`),
+      })),
+    [t],
+  );
+
+  const statusOptions = useMemo(
+    (): { value: BookStatus; label: string }[] => [
+      { value: 'not_started', label: t('bookDetail.statusNotStarted') },
+      { value: 'reading', label: t('library.filterReading') },
+      { value: 'paused', label: t('library.filterPaused') },
+      { value: 'finished', label: t('library.filterFinished') },
+    ],
+    [t],
+  );
 
   const refresh = useCallback(async () => {
     await Promise.all([refreshBook(), refreshStats()]);
@@ -85,9 +129,6 @@ export default function BookDetailScreen() {
     );
   }
 
-  const progressRatio = PdfReaderService.computeProgressRatio(book.currentPage, book.totalPages);
-  const progressPercent = formatReadingProgressPercent(book.currentPage, book.totalPages);
-
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: colors.background }]} edges={['top']}>
       <View style={[styles.topBar, { borderBottomColor: colors.border }]}>
@@ -121,27 +162,43 @@ export default function BookDetailScreen() {
         </View>
 
         <View style={styles.section}>
-          <ThemedText variant="caption" secondary>
-            {formatPageProgress(book.currentPage, book.totalPages)}
-            {progressPercent ? ` · ${progressPercent}` : ''}
-          </ThemedText>
-          {book.totalPages > 0 ? (
-            <ProgressBar progress={progressRatio} />
-          ) : null}
+          <BookMetaCard
+            book={book}
+            onEditCategory={() => setCategoryPickerVisible(true)}
+            onEditPriority={() => setPriorityPickerVisible(true)}
+            onEditStatus={() => setStatusPickerVisible(true)}
+          />
           <Button
             label={t('bookDetail.continueReading')}
             onPress={() => router.push(`/reader/${book.id}`)}
           />
         </View>
 
-        <Card muted style={styles.section}>
-          <ThemedText variant="caption">
-            {t('bookDetail.annotationCounts', {
-              bookmarks: counts.bookmarkCount,
-              notes: counts.noteCount,
-            })}
-          </ThemedText>
-        </Card>
+        <View style={styles.section}>
+          <BookRecentNotesCard
+            notes={notes}
+            loading={notesLoading}
+            onOpenAll={() =>
+              router.push({ pathname: '/notes', params: { bookId: book.id } })
+            }
+            onOpenNote={(note) => {
+              void openReaderAtPage(router, book.id, note.pageNumber);
+            }}
+          />
+        </View>
+
+        <View style={styles.section}>
+          <BookRecentBookmarksCard
+            bookmarks={bookmarks}
+            loading={bookmarksLoading}
+            onOpenAll={() =>
+              router.push({ pathname: '/bookmarks', params: { bookId: book.id } })
+            }
+            onOpenBookmark={(bookmark) => {
+              void openReaderAtPage(router, book.id, bookmark.pageNumber);
+            }}
+          />
+        </View>
 
         {statsLoading || !stats ? (
           <View style={styles.section}>
@@ -149,6 +206,9 @@ export default function BookDetailScreen() {
           </View>
         ) : (
           <>
+            <View style={styles.section}>
+              <BookAnalyticsCard stats={stats} />
+            </View>
             <View style={styles.section}>
               <BookStatsCard stats={stats} />
             </View>
@@ -190,6 +250,51 @@ export default function BookDetailScreen() {
         initialTitle={book.title}
         onClose={() => setRenameVisible(false)}
         onSave={handleRename}
+      />
+
+      <BookOptionPickerModal
+        visible={categoryPickerVisible}
+        title={t('bookDetail.editCategory')}
+        options={categoryOptions}
+        selected={book.category}
+        onSelect={(value) => {
+          void (async () => {
+            await BookService.updateBookCategory(book.id, value as BookCategory);
+            setCategoryPickerVisible(false);
+            await refresh();
+          })();
+        }}
+        onClose={() => setCategoryPickerVisible(false)}
+      />
+
+      <BookOptionPickerModal
+        visible={priorityPickerVisible}
+        title={t('bookDetail.editPriority')}
+        options={priorityOptions}
+        selected={book.priority}
+        onSelect={(value) => {
+          void (async () => {
+            await BookService.updateBookPriority(book.id, value as BookPriority);
+            setPriorityPickerVisible(false);
+            await refresh();
+          })();
+        }}
+        onClose={() => setPriorityPickerVisible(false)}
+      />
+
+      <BookOptionPickerModal
+        visible={statusPickerVisible}
+        title={t('bookDetail.editStatus')}
+        options={statusOptions}
+        selected={book.status}
+        onSelect={(value) => {
+          void (async () => {
+            await BookService.updateBookStatus(book.id, value as BookStatus);
+            setStatusPickerVisible(false);
+            await refresh();
+          })();
+        }}
+        onClose={() => setStatusPickerVisible(false)}
       />
     </SafeAreaView>
   );

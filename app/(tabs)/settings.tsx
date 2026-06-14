@@ -1,4 +1,5 @@
 import Constants from 'expo-constants';
+import { useRouter } from 'expo-router';
 import { Alert, StyleSheet, View } from 'react-native';
 
 import { DataBackupSection } from '@/components/settings/DataBackupSection';
@@ -43,6 +44,7 @@ function SettingRow({
 }
 
 export default function SettingsScreen() {
+  const router = useRouter();
   const { goal, refresh } = useDailyGoal();
   const { t } = useTranslation();
   const appVersion = Constants.expoConfig?.version ?? '1.0.0';
@@ -108,6 +110,25 @@ export default function SettingsScreen() {
         </View>
 
         <View style={styles.section}>
+          <SectionHeader
+            title={t('annotations.librarySectionTitle')}
+            subtitle={t('annotations.librarySectionSubtitle')}
+          />
+          <Card style={styles.linkCard}>
+            <Button
+              label={t('annotations.allNotes')}
+              onPress={() => router.push('/notes')}
+              variant="secondary"
+            />
+            <Button
+              label={t('annotations.allBookmarks')}
+              onPress={() => router.push('/bookmarks')}
+              variant="secondary"
+            />
+          </Card>
+        </View>
+
+        <View style={styles.section}>
           <SectionHeader title={t('settings.dataBackup')} />
           <DataBackupSection />
         </View>
@@ -158,4 +179,5 @@ const styles = StyleSheet.create({
   settingRow: { gap: Spacing.xs },
   settingLabel: { fontWeight: '600', fontSize: 16 },
   dangerCard: { gap: Spacing.md },
+  linkCard: { gap: Spacing.sm },
 });

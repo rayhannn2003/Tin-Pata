@@ -1,5 +1,5 @@
 import { BookmarkRepository } from '@/db/repositories/BookmarkRepository';
-import type { Bookmark } from '@/types';
+import type { Bookmark, BookmarkWithBook } from '@/types';
 import { nowIso } from '@/utils/date';
 import { generateId } from '@/utils/ids';
 
@@ -13,6 +13,14 @@ export class BookmarkError extends Error {
 export const BookmarkService = {
   async getBookBookmarks(bookId: string): Promise<Bookmark[]> {
     return BookmarkRepository.getBookmarksByBookId(bookId);
+  },
+
+  async getAllBookmarksWithBook(): Promise<BookmarkWithBook[]> {
+    return BookmarkRepository.getAllBookmarksWithBook();
+  },
+
+  async searchBookmarks(query: string): Promise<BookmarkWithBook[]> {
+    return BookmarkRepository.searchBookmarks(query);
   },
 
   async isPageBookmarked(bookId: string, pageNumber: number): Promise<boolean> {

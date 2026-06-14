@@ -1,5 +1,5 @@
 import { NoteRepository } from '@/db/repositories/NoteRepository';
-import type { Note } from '@/types';
+import type { Note, NoteWithBook } from '@/types';
 import { nowIso } from '@/utils/date';
 import { generateId } from '@/utils/ids';
 
@@ -13,6 +13,14 @@ export class NoteError extends Error {
 export const NoteService = {
   async getBookNotes(bookId: string): Promise<Note[]> {
     return NoteRepository.getNotesByBookId(bookId);
+  },
+
+  async getAllNotesWithBook(): Promise<NoteWithBook[]> {
+    return NoteRepository.getAllNotesWithBook();
+  },
+
+  async searchNotes(query: string): Promise<NoteWithBook[]> {
+    return NoteRepository.searchNotes(query);
   },
 
   async getPageNotes(bookId: string, pageNumber: number): Promise<Note[]> {

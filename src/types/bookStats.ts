@@ -10,6 +10,10 @@ export interface BookStats {
   firstReadAt: string | null;
   bestSessionPages: number;
   bestSessionMinutes: number;
+  canEstimateFinish: boolean;
+  estimatedFinishDateKey: string | null;
+  estimatedFinishDays: number | null;
+  averagePagesPerReadingDay: number;
 }
 
 export interface BookStatsWithSessions extends BookStats {

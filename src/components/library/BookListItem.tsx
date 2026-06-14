@@ -15,6 +15,7 @@ import {
   formatPageProgress,
   formatReadingProgressPercent,
 } from '@/utils/format';
+import { categoryLabelKey } from '@/utils/libraryOrganize';
 import { PdfReaderService } from '@/services/PdfReaderService';
 
 interface BookListItemProps {
@@ -81,10 +82,40 @@ export function BookListItem({
 
         <View style={styles.metaRow}>
           <ThemedText variant="caption">{pageLabel}</ThemedText>
-          <View style={[styles.statusBadge, { backgroundColor: colors.tintMuted }]}>
-            <ThemedText variant="caption" style={{ color: colors.tint }}>
-              {t(statusKey(book.status))}
-            </ThemedText>
+          <View style={styles.badges}>
+            {book.category !== 'general' ? (
+              <View style={[styles.tagBadge, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <ThemedText variant="caption" secondary>
+                  {t(categoryLabelKey(book.category))}
+                </ThemedText>
+              </View>
+            ) : null}
+            {book.priority !== 'normal' ? (
+              <View
+                style={[
+                  styles.tagBadge,
+                  {
+                    backgroundColor:
+                      book.priority === 'high' ? colors.tintMuted : colors.surface,
+                    borderColor: book.priority === 'high' ? colors.tint : colors.border,
+                  },
+                ]}
+              >
+                <ThemedText
+                  variant="caption"
+                  style={{
+                    color: book.priority === 'high' ? colors.tint : colors.textSecondary,
+                  }}
+                >
+                  {t(`library.priority.${book.priority}`)}
+                </ThemedText>
+              </View>
+            ) : null}
+            <View style={[styles.statusBadge, { backgroundColor: colors.tintMuted }]}>
+              <ThemedText variant="caption" style={{ color: colors.tint }}>
+                {t(statusKey(book.status))}
+              </ThemedText>
+            </View>
           </View>
         </View>
 
@@ -137,9 +168,22 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.6 },
   metaRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: Spacing.sm,
+  },
+  badges: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
+    gap: 6,
+    flexShrink: 1,
+  },
+  tagBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   statusBadge: {
     paddingHorizontal: 10,

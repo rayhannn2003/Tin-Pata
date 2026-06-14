@@ -1,4 +1,8 @@
+import type { BookCategory, BookPriority } from '@/types/bookOrganization';
+
 export type BookStatus = 'not_started' | 'reading' | 'paused' | 'finished';
+
+export type { BookCategory, BookPriority } from '@/types/bookOrganization';
 
 export interface Book {
   id: string;
@@ -12,6 +16,8 @@ export interface Book {
   totalPages: number;
   currentPage: number;
   status: BookStatus;
+  category: BookCategory;
+  priority: BookPriority;
   isUploaded: boolean;
   isDownloaded: boolean;
   createdAt: string;
@@ -58,6 +64,14 @@ export interface Note {
   noteText: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface NoteWithBook extends Note {
+  bookTitle: string;
+}
+
+export interface BookmarkWithBook extends Bookmark {
+  bookTitle: string;
 }
 
 export interface Setting {

@@ -18,6 +18,7 @@ import { NOTIFICATION_SETTING_KEYS } from '@/types/notification';
 import { LAST_BACKUP_AT_KEY, PORTABLE_READER_SETTING_KEYS } from '@/types/reader';
 import {
   BACKUP_EXPORT_VERSION,
+  normalizeBookFromBackup,
   type BackupPayload,
   type BackupValidationResult,
 } from '@/types/backup';
@@ -290,13 +291,15 @@ export const BackupService = {
             }
           }
 
-          await BookRepository.createBook({
-            ...book,
-            isDownloaded,
-            cloudinaryPublicId: null,
-            cloudinaryAssetId: null,
-            isUploaded: false,
-          });
+          await BookRepository.createBook(
+            normalizeBookFromBackup({
+              ...book,
+              isDownloaded,
+              cloudinaryPublicId: null,
+              cloudinaryAssetId: null,
+              isUploaded: false,
+            }),
+          );
         }
 
         for (const session of payload.reading_sessions) {

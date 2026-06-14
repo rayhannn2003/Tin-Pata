@@ -1,5 +1,5 @@
 import { withDatabase } from '@/db/database';
-import type { Note } from '@/types';
+import type { Note, NoteWithBook } from '@/types';
 
 interface NoteRow {
   id: string;
@@ -20,6 +20,23 @@ function mapRow(row: NoteRow): Note {
     updatedAt: row.updated_at,
   };
 }
+
+interface NoteWithBookRow extends NoteRow {
+  book_title: string;
+}
+
+function mapRowWithBook(row: NoteWithBookRow): NoteWithBook {
+  return {
+    ...mapRow(row),
+    bookTitle: row.book_title,
+  };
+}
+
+const NOTES_WITH_BOOK_SELECT = `
+  SELECT n.*, b.title AS book_title
+  FROM notes n
+  INNER JOIN books b ON b.id = n.book_id
+`;
 
 export const NoteRepository = {
   async getNotesByBookId(bookId: string): Promise<Note[]> {
@@ -94,6 +111,40 @@ export const NoteRepository = {
         bookId,
       );
       return row?.count ?? 0;
+    });
+  },
+
+  async getAllNotesWithBook(): Promise<NoteWithBook[]> {
+    return withDatabase(async (db) => {
+      const rows = await db.getAllAsync<NoteWithBookRow>(
+        `${NOTES_WITH_BOOK_SELECT} ORDER BY n.updated_at DESC`,
+      );
+      return rows.map(mapRowWithBook);
+    });
+  },
+
+  async searchNotes(query: string): Promise<NoteWithBook[]> {
+    const trimmed = query.trim();
+    if (!trimmed) {
+      return this.getAllNotesWithBook();
+    }
+
+    const pattern = `%${trimmed.replace(/[%_]/g, '')}%`;
+    const pageNumber = Number.parseInt(trimmed, 10);
+    const hasPageMatch = Number.isFinite(pageNumber) && pageNumber > 0;
+
+    return withDatabase(async (db) => {
+      const rows = await db.getAllAsync<NoteWithBookRow>(
+        `${NOTES_WITH_BOOK_SELECT}
+         WHERE LOWER(n.note_text) LIKE LOWER(?)
+            OR LOWER(b.title) LIKE LOWER(?)
+            ${hasPageMatch ? 'OR n.page_number = ?' : ''}
+         ORDER BY n.updated_at DESC`,
+        ...(hasPageMatch
+          ? [pattern, pattern, pageNumber]
+          : [pattern, pattern]),
+      );
+      return rows.map(mapRowWithBook);
     });
   },
 

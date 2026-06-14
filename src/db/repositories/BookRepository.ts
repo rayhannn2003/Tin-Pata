@@ -1,5 +1,13 @@
 import { withDatabase } from '@/db/database';
 import type { Book, BookStatus } from '@/types';
+import {
+  DEFAULT_BOOK_CATEGORY,
+  DEFAULT_BOOK_PRIORITY,
+  parseBookCategory,
+  parseBookPriority,
+  type BookCategory,
+  type BookPriority,
+} from '@/types/bookOrganization';
 
 interface BookRow {
   id: string;
@@ -13,6 +21,8 @@ interface BookRow {
   total_pages: number;
   current_page: number;
   status: BookStatus;
+  category: string;
+  priority: string;
   is_uploaded: number;
   is_downloaded: number;
   created_at: string;
@@ -32,6 +42,8 @@ function mapRow(row: BookRow): Book {
     totalPages: row.total_pages,
     currentPage: row.current_page,
     status: row.status,
+    category: parseBookCategory(row.category),
+    priority: parseBookPriority(row.priority),
     isUploaded: row.is_uploaded === 1,
     isDownloaded: row.is_downloaded === 1,
     createdAt: row.created_at,
@@ -65,8 +77,8 @@ export const BookRepository = {
         `INSERT INTO books (
           id, title, author, local_uri, file_name, file_size,
           cloudinary_public_id, cloudinary_asset_id, total_pages, current_page,
-          status, is_uploaded, is_downloaded, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          status, category, priority, is_uploaded, is_downloaded, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         book.id,
         book.title,
         book.author,
@@ -78,6 +90,8 @@ export const BookRepository = {
         book.totalPages,
         book.currentPage,
         book.status,
+        book.category ?? DEFAULT_BOOK_CATEGORY,
+        book.priority ?? DEFAULT_BOOK_PRIORITY,
         book.isUploaded ? 1 : 0,
         book.isDownloaded ? 1 : 0,
         book.createdAt,
@@ -103,8 +117,8 @@ export const BookRepository = {
         `UPDATE books SET
           title = ?, author = ?, local_uri = ?, file_name = ?, file_size = ?,
           cloudinary_public_id = ?, cloudinary_asset_id = ?, total_pages = ?,
-          current_page = ?, status = ?, is_uploaded = ?, is_downloaded = ?,
-          updated_at = ?
+          current_page = ?, status = ?, category = ?, priority = ?,
+          is_uploaded = ?, is_downloaded = ?, updated_at = ?
         WHERE id = ?`,
         updated.title,
         updated.author,
@@ -116,6 +130,8 @@ export const BookRepository = {
         updated.totalPages,
         updated.currentPage,
         updated.status,
+        updated.category,
+        updated.priority,
         updated.isUploaded ? 1 : 0,
         updated.isDownloaded ? 1 : 0,
         updated.updatedAt,
@@ -130,6 +146,14 @@ export const BookRepository = {
 
   async updateStatus(id: string, status: BookStatus): Promise<void> {
     await this.updateBook(id, { status });
+  },
+
+  async updateCategory(id: string, category: BookCategory): Promise<void> {
+    await this.updateBook(id, { category });
+  },
+
+  async updatePriority(id: string, priority: BookPriority): Promise<void> {
+    await this.updateBook(id, { priority });
   },
 
   async deleteBook(id: string): Promise<void> {

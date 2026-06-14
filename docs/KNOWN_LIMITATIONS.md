@@ -1,6 +1,6 @@
 # Known Limitations
 
-Tin Pata **v1.1.4** — personal-use, offline-first Android app.
+Tin Pata **v1.2.0** — personal-use, offline-first Android app.
 
 ---
 
@@ -20,10 +20,10 @@ Tin Pata **v1.1.4** — personal-use, offline-first Android app.
 | Limitation | Detail |
 |------------|--------|
 | **Black flash on resume** | Opening at a saved page may briefly flash black (`react-native-pdf` native behavior). |
-| **Focus mode disabled** | Not available in v1.1.4 — coming in a future release. |
+| **Focus mode disabled** | Not available in v1.2.0 — coming in a future release. |
 | **Fit mode disabled** | PDF layout is fixed in safe stability mode (vertical scroll, auto fit). |
-| **Scroll direction disabled** | Horizontal page swipe / paging mode not exposed in v1.1.4. |
-| **No PDF text search** | Not planned for v1.1. |
+| **Scroll direction disabled** | Horizontal page swipe / paging mode not exposed in v1.2.0. |
+| **No PDF text search** | Not planned for v1.2. |
 | **Large PDFs** | Very large files may load slowly; progress depends on native renderer. |
 
 Details: [READER_KNOWN_LIMITATIONS.md](./READER_KNOWN_LIMITATIONS.md)
@@ -37,6 +37,7 @@ Details: [READER_KNOWN_LIMITATIONS.md](./READER_KNOWN_LIMITATIONS.md)
 | **PDFs not in JSON backup** | Export includes books metadata, sessions, notes, bookmarks, goals, reflections, and portable settings — **not PDF file bytes**. Copy PDFs separately. |
 | **Restore requires local PDFs** | After import, books need matching PDF files at stored paths or re-import. |
 | **No cloud backup** | Backup is manual JSON export via share sheet only. |
+| **Old backups compatible** | v1.2 adds `category` and `priority` on books; missing fields default on import. |
 
 ---
 
@@ -47,6 +48,17 @@ Details: [READER_KNOWN_LIMITATIONS.md](./READER_KNOWN_LIMITATIONS.md)
 | **Brightness needs native module** | `expo-brightness` must be in the built APK. Rebuild after adding the plugin. |
 | **Brightness is system-level** | Affects device/app brightness, not PDF rendering internals. |
 | **Keep awake is reader-only** | Screen stays on while the reader screen is open when enabled. |
+
+---
+
+## Stats & insights (v1.2)
+
+| Limitation | Detail |
+|------------|--------|
+| **Insights need session data** | Mood, focus, and blocker insights appear only when finish-session survey fields were saved. |
+| **Estimated finish is approximate** | Based on average pages per reading day; needs at least 2 reading days and known total pages. |
+| **No chart library** | Insights are card-based text summaries, not graphs. |
+| **Time range buckets** | Best reading time uses fixed morning/afternoon/evening buckets, not exact hours. |
 
 ---
 
@@ -64,4 +76,4 @@ If the initial `page` prop causes crashes again:
 
 - [READER_KNOWN_LIMITATIONS.md](./READER_KNOWN_LIMITATIONS.md) — PDF stability constraints
 - [READER_STABILITY_TEST_CHECKLIST.md](./READER_STABILITY_TEST_CHECKLIST.md) — Reader QA
-- [V1_1_RELEASE_CHECKLIST.md](./V1_1_RELEASE_CHECKLIST.md) — Full v1.1.4 sign-off
+- [V1_2_RELEASE_CHECKLIST.md](./V1_2_RELEASE_CHECKLIST.md) — Full v1.2.0 sign-off

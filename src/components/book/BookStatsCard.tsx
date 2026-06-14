@@ -37,18 +37,6 @@ export function BookStatsCard({ stats }: BookStatsCardProps) {
           label={t('bookDetail.totalPagesRead')}
           value={String(stats.totalPagesRead)}
         />
-        <StatItem
-          label={t('bookDetail.avgPages')}
-          value={String(stats.averagePagesPerSession)}
-        />
-        <StatItem
-          label={t('bookDetail.avgMinutes')}
-          value={String(stats.averageMinutesPerSession)}
-        />
-        <StatItem
-          label={t('bookDetail.bestSessionPages')}
-          value={String(stats.bestSessionPages)}
-        />
       </View>
     </Card>
   );
