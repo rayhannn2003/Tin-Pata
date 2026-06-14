@@ -1,6 +1,6 @@
 # Reader Stability Test Checklist
 
-Tin Pata v1.1.4A (internal) — manual regression tests for the PDF reader. App version remains **1.1.3** until final sign-off.
+Tin Pata v1.1.4 — manual regression tests for the PDF reader.
 
 **Prerequisites**
 
@@ -108,7 +108,7 @@ If the initial `page` prop causes repeated black flash or native crash:
 
 - **Device:**
 - **Build:** debug / release
-- **Version:** 1.1.3 (v1.1.4B internal)
+- **Version:** 1.1.4
 - **Date:**
 - **Tester:**
 - **Result:** Pass / Fail

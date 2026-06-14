@@ -126,12 +126,12 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <SectionHeader title={t('settings.appInfo')} />
           <Card>
-            <SettingRow label="App" value={APP_DISPLAY_NAME} />
+            <SettingRow label={t('settings.appNameLabel')} value={APP_DISPLAY_NAME} />
             <SettingRow label={t('common.english')} value={APP_NAME_EN} />
             <SettingRow label={t('common.bengali')} value={APP_NAME_BN} />
-            <SettingRow label="Version" value={appVersion} />
+            <SettingRow label={t('settings.versionLabel')} value={appVersion} />
             <SettingRow
-              label="Build"
+              label={t('settings.buildLabel')}
               value={t('settings.build')}
               description={t('settings.buildDesc')}
             />

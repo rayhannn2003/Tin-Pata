@@ -1,6 +1,6 @@
 # Reader Known Limitations
 
-Tin Pata v1.1.x — PDF reader constraints and stability notes.
+Tin Pata v1.1.4 — PDF reader constraints and stability notes.
 
 ## Black flash on resume
 
@@ -45,4 +45,4 @@ Do not re-enable risky reader experiments without a new stability mode and devic
 - Do not update the **`page` prop** reactively after mount.
 - Do not add focus/fit/scroll toggles that alter native PDF props at runtime.
 
-See also: [READER_STABILITY_TEST_CHECKLIST.md](./READER_STABILITY_TEST_CHECKLIST.md), [CNG_SETUP.md](./CNG_SETUP.md).
+See also: [KNOWN_LIMITATIONS.md](./KNOWN_LIMITATIONS.md), [READER_STABILITY_TEST_CHECKLIST.md](./READER_STABILITY_TEST_CHECKLIST.md), [CNG_SETUP.md](./CNG_SETUP.md).

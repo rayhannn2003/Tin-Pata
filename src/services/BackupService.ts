@@ -143,7 +143,7 @@ export const BackupService = {
     const settings = allSettings.filter((s) => shouldIncludeSetting(s.key));
 
     return {
-      app_version: Constants.expoConfig?.version ?? '1.1.0',
+      app_version: Constants.expoConfig?.version ?? '1.1.4',
       export_version: BACKUP_EXPORT_VERSION,
       exported_at: new Date().toISOString(),
       app_name: APP_NAME_BN,

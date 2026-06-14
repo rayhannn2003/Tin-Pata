@@ -4,6 +4,17 @@ Phased implementation plan for building the Reading Habit Tracker incrementally.
 
 ---
 
+## Release status (June 2026)
+
+| Version | Status | Notes |
+|---------|--------|-------|
+| **v1.0.0** | Shipped | Stable personal APK — core reading habit features |
+| **v1.1.4** | **Current stable** | Reader comfort + stability — see [VERSION_HISTORY.md](./VERSION_HISTORY.md) |
+
+**v1.1.4 QA:** [V1_1_RELEASE_CHECKLIST.md](./V1_1_RELEASE_CHECKLIST.md) · **Limitations:** [KNOWN_LIMITATIONS.md](./KNOWN_LIMITATIONS.md)
+
+---
+
 ## Overview
 
 | Phase | Focus | Depends On |
