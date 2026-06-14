@@ -14,6 +14,7 @@ interface ReaderActionBarProps {
   onBookmark: () => void;
   onNotes: () => void;
   onOpenLists: () => void;
+  onOpenComfort: () => void;
   onGoToPage: () => void;
   onFinish: () => void;
 }
@@ -73,6 +74,7 @@ export function ReaderActionBar({
   onBookmark,
   onNotes,
   onOpenLists,
+  onOpenComfort,
   onGoToPage,
   onFinish,
 }: ReaderActionBarProps) {
@@ -111,6 +113,12 @@ export function ReaderActionBar({
         label={t('reader.lists')}
         compact={compact}
         onPress={onOpenLists}
+      />
+      <ActionButton
+        icon="sunny-outline"
+        label={t('reader.comfort')}
+        compact={compact}
+        onPress={onOpenComfort}
       />
       <ActionButton
         icon="navigate-outline"

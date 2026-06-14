@@ -7,6 +7,8 @@ export const READER_SETTING_KEYS = {
   compactActions: 'reader_compact_actions',
   defaultFocusMode: 'reader_default_focus_mode',
   stabilityMode: 'reader_stability_mode',
+  brightnessEnabled: 'reader_brightness_enabled',
+  brightnessValue: 'reader_brightness_value',
 } as const;
 
 export const LAST_BACKUP_AT_KEY = 'last_backup_at';
@@ -27,6 +29,8 @@ export interface ReaderPreferences {
   showProgress: boolean;
   compactActions: boolean;
   defaultFocusMode: boolean;
+  brightnessEnabled: boolean;
+  brightnessValue: number;
 }
 
 export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
@@ -37,6 +41,8 @@ export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
   showProgress: true,
   compactActions: false,
   defaultFocusMode: false,
+  brightnessEnabled: false,
+  brightnessValue: 0.75,
 };
 
 /** PDF layout in safe stability mode — not driven by stored fit/scroll prefs. */
@@ -56,4 +62,6 @@ export const PORTABLE_READER_SETTING_KEYS: string[] = [
   READER_SETTING_KEYS.compactActions,
   READER_SETTING_KEYS.defaultFocusMode,
   READER_SETTING_KEYS.stabilityMode,
+  READER_SETTING_KEYS.brightnessEnabled,
+  READER_SETTING_KEYS.brightnessValue,
 ];

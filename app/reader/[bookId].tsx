@@ -6,6 +6,7 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 
 import { FeedbackBanner } from '@/components/common/FeedbackBanner';
 import { BookmarkListModal } from '@/components/reader/BookmarkListModal';
+import { ReaderComfortModal } from '@/components/reader/ReaderComfortModal';
 import { FinishSessionModal } from '@/components/reader/FinishSessionModal';
 import { GoToPageModal } from '@/components/reader/GoToPageModal';
 import { LastReadBanner } from '@/components/reader/LastReadBanner';
@@ -22,6 +23,7 @@ import { useBookmarks } from '@/features/bookmarks/useBookmarks';
 import { useBookNotes } from '@/features/notes/useBookNotes';
 import { usePageNotes } from '@/features/notes/usePageNotes';
 import { usePdfReader } from '@/features/reader/usePdfReader';
+import { useReaderBrightness } from '@/features/reader/useReaderBrightness';
 import { useReaderPreferences } from '@/features/reader/useReaderPreferences';
 import { useRescueMode } from '@/features/rescue/useRescueMode';
 import { useRescueProgress } from '@/features/rescue/useRescueProgress';
@@ -43,7 +45,7 @@ export default function ReaderScreen() {
   const router = useRouter();
   const colors = useThemeColors();
   const { t } = useTranslation();
-  const { preferences } = useReaderPreferences();
+  const { preferences, saving: prefsSaving, updatePreferences } = useReaderPreferences();
   const readerPrefs = preferences ?? DEFAULT_READER_PREFERENCES;
   const { rescueMode, isRescueActive } = useRescueMode();
   const rescueStartPageRef = useRef<number>(1);
@@ -127,6 +129,7 @@ export default function ReaderScreen() {
   const { primaryNote, refresh: refreshPageNotes } = usePageNotes(bookId, currentPage);
 
   const [listsVisible, setListsVisible] = useState(false);
+  const [comfortVisible, setComfortVisible] = useState(false);
   const [bookmarkListVisible, setBookmarkListVisible] = useState(false);
   const [notesListVisible, setNotesListVisible] = useState(false);
   const [noteEditorVisible, setNoteEditorVisible] = useState(false);
@@ -268,6 +271,33 @@ export default function ReaderScreen() {
 
   const hasPageNote = bookNotes.some((n) => n.pageNumber === currentPage);
 
+  const {
+    errorKey: brightnessErrorKey,
+    available: brightnessAvailable,
+    applyNow,
+    clearError: clearBrightnessError,
+  } = useReaderBrightness(
+    readerPrefs.brightnessEnabled,
+    readerPrefs.brightnessValue,
+    state === 'ready',
+  );
+
+  const handleComfortUpdate = useCallback(
+    (patch: Partial<typeof readerPrefs>) => {
+      void updatePreferences(patch);
+    },
+    [updatePreferences],
+  );
+
+  const handleBrightnessSlideComplete = useCallback(
+    (value: number) => {
+      if (readerPrefs.brightnessEnabled) {
+        void applyNow(value);
+      }
+    },
+    [applyNow, readerPrefs.brightnessEnabled],
+  );
+
   useEffect(() => {
     if (state !== 'ready' || !readerPrefs.keepAwake) {
       return;
@@ -277,6 +307,12 @@ export default function ReaderScreen() {
       deactivateKeepAwake('tin-pata-reader');
     };
   }, [readerPrefs.keepAwake, state]);
+
+  useEffect(() => {
+    return () => {
+      deactivateKeepAwake('tin-pata-reader');
+    };
+  }, []);
 
   if (state === 'loading_book') {
     return (
@@ -348,6 +384,14 @@ export default function ReaderScreen() {
             message={feedback}
             variant="success"
             onDismiss={() => setFeedback(null)}
+          />
+        ) : null}
+
+        {brightnessErrorKey ? (
+          <FeedbackBanner
+            message={t(brightnessErrorKey)}
+            variant="info"
+            onDismiss={clearBrightnessError}
           />
         ) : null}
 
@@ -425,8 +469,19 @@ export default function ReaderScreen() {
         onBookmark={handleBookmarkPress}
         onNotes={() => openNoteEditor(currentPage)}
         onOpenLists={() => setListsVisible(true)}
+        onOpenComfort={() => setComfortVisible(true)}
         onGoToPage={openGoToPage}
         onFinish={openFinishModal}
+      />
+
+      <ReaderComfortModal
+        visible={comfortVisible}
+        preferences={readerPrefs}
+        brightnessAvailable={brightnessAvailable}
+        saving={prefsSaving}
+        onClose={() => setComfortVisible(false)}
+        onUpdate={handleComfortUpdate}
+        onBrightnessSlideComplete={handleBrightnessSlideComplete}
       />
 
       <GoToPageModal

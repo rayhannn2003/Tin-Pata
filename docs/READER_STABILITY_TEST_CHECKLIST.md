@@ -43,9 +43,27 @@ Tin Pata v1.1.4A (internal) — manual regression tests for the PDF reader. App 
 
 | # | Test | Pass? | Notes |
 |---|------|-------|-------|
-| 15 | Reading Experience shows 4 toggles | ☐ | Keep awake, timer, progress, compact bar |
+| 15 | Reading Experience shows comfort toggles | ☐ | Keep awake, brightness, timer, progress, compact bar |
 | 16 | “Coming later” note visible | ☐ | Focus, fit, scroll, default focus — not as usable controls |
 | 17 | No disabled switch rows for risky prefs | ☐ | |
+
+---
+
+## v1.1.4B — Safe reader comfort
+
+| # | Test | Pass? | Notes |
+|---|------|-------|-------|
+| 31 | Reader brightness applies in reader | ☐ | Enable in Settings; open book; screen dims/brightens |
+| 32 | Brightness restores after leaving reader | ☐ | Exit reader; system brightness returns |
+| 33 | Brightness API failure is calm | ☐ | No crash; info banner if permission/API fails |
+| 34 | Keep screen awake on reader only | ☐ | Screen stays on while reading; off after exit |
+| 35 | Timer hidden but session continues | ☐ | Hide timer; finish session still records time |
+| 36 | Progress hidden but page tracking continues | ☐ | Hide progress; `current_page` still updates |
+| 37 | Compact action bar works | ☐ | Icons only in bottom bar |
+| 38 | Reader comfort panel opens from action bar | ☐ | Brightness + UI toggles; no fit/scroll/focus |
+| 39 | Language switching works | ☐ | EN ↔ BN for new comfort strings |
+| 40 | Brightness prefs in JSON backup | ☐ | Export/import includes brightness enabled + value |
+| 41 | `npm run typecheck` passes | ☐ | |
 
 ---
 
@@ -90,7 +108,7 @@ If the initial `page` prop causes repeated black flash or native crash:
 
 - **Device:**
 - **Build:** debug / release
-- **Version:** 1.1.3 (v1.1.4A internal)
+- **Version:** 1.1.3 (v1.1.4B internal)
 - **Date:**
 - **Tester:**
 - **Result:** Pass / Fail

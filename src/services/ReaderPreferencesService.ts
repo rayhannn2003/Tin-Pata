@@ -32,6 +32,17 @@ function parseScrollMode(value: string | null): ReaderScrollMode {
   return DEFAULT_READER_PREFERENCES.scrollMode;
 }
 
+function parseBrightnessValue(value: string | null): number {
+  if (value === null) {
+    return DEFAULT_READER_PREFERENCES.brightnessValue;
+  }
+  const parsed = Number.parseFloat(value);
+  if (!Number.isFinite(parsed)) {
+    return DEFAULT_READER_PREFERENCES.brightnessValue;
+  }
+  return Math.min(1, Math.max(0, parsed));
+}
+
 export function fitModeToPolicy(fitMode: ReaderFitMode): 0 | 1 | 2 {
   switch (fitMode) {
     case 'width':
@@ -61,6 +72,8 @@ export const ReaderPreferencesService = {
       showProgress,
       compactActions,
       defaultFocusMode,
+      brightnessEnabled,
+      brightnessValue,
     ] = await Promise.all([
       SettingsRepository.get(READER_SETTING_KEYS.keepAwake),
       SettingsRepository.get(READER_SETTING_KEYS.fitMode),
@@ -69,6 +82,8 @@ export const ReaderPreferencesService = {
       SettingsRepository.get(READER_SETTING_KEYS.showProgress),
       SettingsRepository.get(READER_SETTING_KEYS.compactActions),
       SettingsRepository.get(READER_SETTING_KEYS.defaultFocusMode),
+      SettingsRepository.get(READER_SETTING_KEYS.brightnessEnabled),
+      SettingsRepository.get(READER_SETTING_KEYS.brightnessValue),
     ]);
 
     return {
@@ -82,6 +97,11 @@ export const ReaderPreferencesService = {
         defaultFocusMode,
         DEFAULT_READER_PREFERENCES.defaultFocusMode,
       ),
+      brightnessEnabled: parseBool(
+        brightnessEnabled,
+        DEFAULT_READER_PREFERENCES.brightnessEnabled,
+      ),
+      brightnessValue: parseBrightnessValue(brightnessValue),
     };
   },
 
@@ -108,6 +128,14 @@ export const ReaderPreferencesService = {
       SettingsRepository.set(
         READER_SETTING_KEYS.defaultFocusMode,
         String(preferences.defaultFocusMode),
+      ),
+      SettingsRepository.set(
+        READER_SETTING_KEYS.brightnessEnabled,
+        String(preferences.brightnessEnabled),
+      ),
+      SettingsRepository.set(
+        READER_SETTING_KEYS.brightnessValue,
+        String(preferences.brightnessValue),
       ),
     ]);
   },
