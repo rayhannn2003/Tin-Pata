@@ -7,9 +7,7 @@ import type { PdfRef } from '@/components/reader/types';
 interface ReaderPdfContentProps {
   pdfRef: RefObject<PdfRef | null>;
   uri: string;
-  page: number;
-  loading: boolean;
-  onLoadStart: () => void;
+  initialPage: number;
   onLoadComplete: (pageCount: number) => void;
   onPageChanged: (page: number, pageCount: number) => void;
   onError: (error: unknown) => void;
@@ -18,7 +16,7 @@ interface ReaderPdfContentProps {
 export function ReaderPdfContent({
   pdfRef,
   uri,
-  page,
+  initialPage,
   onLoadComplete,
   onPageChanged,
   onError,
@@ -28,7 +26,7 @@ export function ReaderPdfContent({
       <PdfViewer
         ref={pdfRef}
         uri={uri}
-        page={page}
+        initialPage={initialPage}
         onLoadComplete={onLoadComplete}
         onPageChanged={onPageChanged}
         onError={onError}

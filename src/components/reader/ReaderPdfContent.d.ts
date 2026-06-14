@@ -5,9 +5,7 @@ import type { PdfRef } from './types';
 export interface ReaderPdfContentProps {
   pdfRef: RefObject<PdfRef | null>;
   uri: string;
-  page: number;
-  loading: boolean;
-  onLoadStart: () => void;
+  initialPage: number;
   onLoadComplete: (pageCount: number) => void;
   onPageChanged: (page: number, pageCount: number) => void;
   onError: (error: unknown) => void;

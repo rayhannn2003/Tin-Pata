@@ -2,6 +2,7 @@ import Constants from 'expo-constants';
 import { Alert, StyleSheet, View } from 'react-native';
 
 import { DataBackupSection } from '@/components/settings/DataBackupSection';
+import { ReadingExperienceSettings } from '@/components/settings/ReadingExperienceSettings';
 import { LanguagePicker } from '@/components/settings/LanguagePicker';
 import { NotificationSettingsPanel } from '@/components/settings/NotificationSettings';
 import { ReflectionHistory } from '@/components/settings/ReflectionHistory';
@@ -66,6 +67,14 @@ export default function SettingsScreen() {
         <ThemedText secondary style={styles.intro}>
           {t('settings.intro')}
         </ThemedText>
+
+        <View style={styles.section}>
+          <SectionHeader
+            title={t('settings.readingExperience')}
+            subtitle={t('settings.readingExperienceSubtitle')}
+          />
+          <ReadingExperienceSettings />
+        </View>
 
         <View style={styles.section}>
           <SectionHeader title={t('settings.language')} subtitle={t('settings.languageSubtitle')} />

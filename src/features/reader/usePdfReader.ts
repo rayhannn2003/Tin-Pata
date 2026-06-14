@@ -13,21 +13,35 @@ import type { Book } from '@/types';
 
 import { useBook } from '@/features/books/useBook';
 
+const PDF_STILL_LOADING_MESSAGE =
+  'PDF is still loading. Try again in a moment.';
+
+/** How long to wait after load before showing manual fallback if still on page 1. */
+const AUTO_RESUME_CHECK_MS = 1500;
+
+/** How long to show the success banner before hiding. */
+const RESUMED_BANNER_DISMISS_MS = 3000;
+
 export type ReaderScreenState =
   | 'loading_book'
   | 'unsupported'
   | 'error'
   | 'ready';
 
+export type AutoResumeStatus = 'none' | 'opening' | 'resumed' | 'fallback';
+
 interface UsePdfReaderResult {
   state: ReaderScreenState;
   book: Book | null;
   pdfUri: string | null;
-  initialPage: number;
+  initialResumePage: number;
+  savedPage: number;
   currentPage: number;
   totalPages: number;
   pdfLoading: boolean;
-  resumeHint: string | null;
+  isPdfLoaded: boolean;
+  autoResumeStatus: AutoResumeStatus;
+  showLoadingJumpHint: boolean;
   errorMessage: string | null;
   goToPageVisible: boolean;
   goToPageError: string | null;
@@ -36,10 +50,12 @@ interface UsePdfReaderResult {
   closeGoToPage: () => void;
   submitGoToPage: (input: string) => void;
   jumpToPage: (page: number) => void;
+  goToSavedPage: () => void;
+  dismissFallbackBanner: () => void;
+  clearLoadingJumpHint: () => void;
   handlePdfLoadComplete: (pageCount: number) => void;
   handlePdfPageChanged: (page: number, pageCount: number) => void;
   handlePdfLoadError: (error: unknown) => void;
-  handlePdfLoadStart: () => void;
 }
 
 export function usePdfReader(bookId: string | undefined): UsePdfReaderResult {
@@ -49,20 +65,33 @@ export function usePdfReader(bookId: string | undefined): UsePdfReaderResult {
   const [state, setState] = useState<ReaderScreenState>('loading_book');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [pdfUri, setPdfUri] = useState<string | null>(null);
-  const [initialPage, setInitialPage] = useState(1);
+  const [initialResumePage, setInitialResumePage] = useState(1);
+  const [savedPage, setSavedPage] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [pdfLoading, setPdfLoading] = useState(true);
-  const [resumeHint, setResumeHint] = useState<string | null>(null);
+  const [isPdfLoaded, setIsPdfLoaded] = useState(false);
+  const [autoResumeStatus, setAutoResumeStatus] = useState<AutoResumeStatus>('none');
+  const [showLoadingJumpHint, setShowLoadingJumpHint] = useState(false);
   const [goToPageVisible, setGoToPageVisible] = useState(false);
   const [goToPageError, setGoToPageError] = useState<string | null>(null);
 
+  const isMountedRef = useRef(true);
   const lastSavedPageRef = useRef(1);
   const currentPageRef = useRef(1);
+  const totalPagesRef = useRef(0);
+  const lastJumpedPageRef = useRef(0);
+  const hasPdfErrorRef = useRef(false);
+  const unmountFlushedRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fallbackCheckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resumedDismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const totalPagesPersistedRef = useRef(false);
+  const preparedBookIdRef = useRef<string | null>(null);
+  const autoResumeTargetRef = useRef(1);
+  const autoResumeSucceededRef = useRef(false);
+  const initialResumePageRef = useRef(1);
 
   const clearLoadTimeout = useCallback(() => {
     if (loadTimeoutRef.current) {
@@ -71,10 +100,29 @@ export function usePdfReader(bookId: string | undefined): UsePdfReaderResult {
     }
   }, []);
 
+  const clearFallbackCheckTimer = useCallback(() => {
+    if (fallbackCheckTimerRef.current) {
+      clearTimeout(fallbackCheckTimerRef.current);
+      fallbackCheckTimerRef.current = null;
+    }
+  }, []);
+
+  const clearResumedDismissTimer = useCallback(() => {
+    if (resumedDismissTimerRef.current) {
+      clearTimeout(resumedDismissTimerRef.current);
+      resumedDismissTimerRef.current = null;
+    }
+  }, []);
+
   const scheduleLoadTimeout = useCallback(() => {
     clearLoadTimeout();
     loadTimeoutRef.current = setTimeout(() => {
+      if (!isMountedRef.current) {
+        return;
+      }
+      hasPdfErrorRef.current = true;
       setPdfLoading(false);
+      setIsPdfLoaded(false);
       setState('error');
       setErrorMessage(
         'The PDF took too long to open. Try closing and reopening, or re-import the file.',
@@ -89,9 +137,39 @@ export function usePdfReader(bookId: string | undefined): UsePdfReaderResult {
     }
   }, []);
 
+  const markAutoResumeSucceeded = useCallback(() => {
+    if (autoResumeSucceededRef.current) {
+      return;
+    }
+    autoResumeSucceededRef.current = true;
+    clearFallbackCheckTimer();
+    setAutoResumeStatus('resumed');
+    clearResumedDismissTimer();
+    resumedDismissTimerRef.current = setTimeout(() => {
+      if (isMountedRef.current) {
+        setAutoResumeStatus('none');
+      }
+    }, RESUMED_BANNER_DISMISS_MS);
+  }, [clearFallbackCheckTimer, clearResumedDismissTimer]);
+
+  const scheduleFallbackCheck = useCallback(() => {
+    clearFallbackCheckTimer();
+    if (autoResumeTargetRef.current <= 1) {
+      return;
+    }
+    fallbackCheckTimerRef.current = setTimeout(() => {
+      if (!isMountedRef.current || autoResumeSucceededRef.current) {
+        return;
+      }
+      if (currentPageRef.current === 1) {
+        setAutoResumeStatus('fallback');
+      }
+    }, AUTO_RESUME_CHECK_MS);
+  }, [clearFallbackCheckTimer]);
+
   const persistPageNow = useCallback(
     async (page: number) => {
-      if (!bookId || page === lastSavedPageRef.current) {
+      if (!bookId || !isMountedRef.current || page === lastSavedPageRef.current) {
         return;
       }
       lastSavedPageRef.current = page;
@@ -106,7 +184,7 @@ export function usePdfReader(bookId: string | undefined): UsePdfReaderResult {
 
   const schedulePageSave = useCallback(
     (page: number) => {
-      if (!bookId) {
+      if (!bookId || hasPdfErrorRef.current) {
         return;
       }
       clearSaveTimer();
@@ -137,6 +215,40 @@ export function usePdfReader(bookId: string | undefined): UsePdfReaderResult {
   );
 
   useEffect(() => {
+    isMountedRef.current = true;
+    unmountFlushedRef.current = false;
+    return () => {
+      isMountedRef.current = false;
+      clearSaveTimer();
+      clearLoadTimeout();
+      clearFallbackCheckTimer();
+      clearResumedDismissTimer();
+      if (
+        bookId &&
+        !unmountFlushedRef.current &&
+        currentPageRef.current !== lastSavedPageRef.current
+      ) {
+        unmountFlushedRef.current = true;
+        void BookService.updateProgress(bookId, { currentPage: currentPageRef.current });
+      }
+    };
+  }, [
+    bookId,
+    clearFallbackCheckTimer,
+    clearLoadTimeout,
+    clearResumedDismissTimer,
+    clearSaveTimer,
+  ]);
+
+  useEffect(() => {
+    currentPageRef.current = currentPage;
+  }, [currentPage]);
+
+  useEffect(() => {
+    totalPagesRef.current = totalPages;
+  }, [totalPages]);
+
+  useEffect(() => {
     if (bookLoading) {
       setState('loading_book');
       return;
@@ -156,34 +268,49 @@ export function usePdfReader(bookId: string | undefined): UsePdfReaderResult {
       return;
     }
 
+    if (!bookId || !book) {
+      return;
+    }
+
+    if (preparedBookIdRef.current === bookId && state === 'ready') {
+      return;
+    }
+
     try {
       const verified = PdfReaderService.verifyBookForReading(book, bookId);
-      const startPage = PdfReaderService.initialPageForBook(verified);
+      const knownTotal =
+        verified.totalPages > 0 ? verified.totalPages : verified.currentPage;
+      const storedPage = PdfReaderService.clampPage(
+        PdfReaderService.initialPageForBook(verified),
+        knownTotal > 0 ? knownTotal : verified.currentPage,
+      );
       const uri = PdfReaderService.resolveReaderUri(verified);
 
+      preparedBookIdRef.current = bookId;
+      hasPdfErrorRef.current = false;
+      lastJumpedPageRef.current = 0;
+      autoResumeSucceededRef.current = false;
+      autoResumeTargetRef.current = storedPage;
+      initialResumePageRef.current = storedPage;
+      clearFallbackCheckTimer();
+      clearResumedDismissTimer();
+
       setPdfUri(uri);
-      setInitialPage(startPage);
-      setCurrentPage(startPage);
-      currentPageRef.current = startPage;
+      setInitialResumePage(storedPage);
+      setSavedPage(storedPage);
+      setCurrentPage(storedPage > 1 ? storedPage : 1);
+      currentPageRef.current = storedPage > 1 ? storedPage : 1;
       setTotalPages(verified.totalPages > 0 ? verified.totalPages : 0);
+      totalPagesRef.current = verified.totalPages > 0 ? verified.totalPages : 0;
       lastSavedPageRef.current = verified.currentPage;
       totalPagesPersistedRef.current = verified.totalPages > 0;
       setPdfLoading(true);
+      setIsPdfLoaded(false);
+      setShowLoadingJumpHint(false);
       setErrorMessage(null);
+      setAutoResumeStatus(storedPage > 1 ? 'opening' : 'none');
       setState('ready');
       scheduleLoadTimeout();
-
-      if (PdfReaderService.shouldShowResumeHint(verified)) {
-        setResumeHint(`Resuming from page ${startPage}`);
-        if (resumeTimerRef.current) {
-          clearTimeout(resumeTimerRef.current);
-        }
-        resumeTimerRef.current = setTimeout(() => {
-          setResumeHint(null);
-        }, 3500);
-      } else {
-        setResumeHint(null);
-      }
     } catch (error) {
       setState('error');
       setErrorMessage(
@@ -192,86 +319,142 @@ export function usePdfReader(bookId: string | undefined): UsePdfReaderResult {
           : 'Could not prepare the reader.',
       );
     }
-  }, [book, bookId, bookLoadError, bookLoading, scheduleLoadTimeout]);
-
-  useEffect(() => {
-    currentPageRef.current = currentPage;
-  }, [currentPage]);
-
-  useEffect(() => {
-    return () => {
-      clearSaveTimer();
-      clearLoadTimeout();
-      if (resumeTimerRef.current) {
-        clearTimeout(resumeTimerRef.current);
-      }
-      if (bookId && currentPageRef.current !== lastSavedPageRef.current) {
-        void BookService.updateProgress(bookId, { currentPage: currentPageRef.current });
-      }
-    };
-  }, [bookId, clearLoadTimeout, clearSaveTimer]);
-
-  const handlePdfLoadStart = useCallback(() => {
-    if (pdfLoading) {
-      return;
-    }
-    setPdfLoading(true);
-    scheduleLoadTimeout();
-  }, [pdfLoading, scheduleLoadTimeout]);
+  }, [
+    book,
+    bookId,
+    bookLoadError,
+    bookLoading,
+    clearFallbackCheckTimer,
+    clearResumedDismissTimer,
+    scheduleLoadTimeout,
+    state,
+  ]);
 
   const handlePdfLoadComplete = useCallback(
     (pageCount: number) => {
+      if (!isMountedRef.current || hasPdfErrorRef.current) {
+        return;
+      }
       clearLoadTimeout();
       setPdfLoading(false);
+      setIsPdfLoaded(true);
       if (pageCount > 0) {
         setTotalPages(pageCount);
+        totalPagesRef.current = pageCount;
         void persistTotalPages(pageCount);
       }
+
+      if (autoResumeTargetRef.current > 1) {
+        if (pageCount > 0 && autoResumeTargetRef.current > pageCount) {
+          setAutoResumeStatus('fallback');
+          return;
+        }
+        scheduleFallbackCheck();
+      }
     },
-    [clearLoadTimeout, persistTotalPages],
+    [clearLoadTimeout, persistTotalPages, scheduleFallbackCheck],
   );
 
   const handlePdfPageChanged = useCallback(
     (page: number, pageCount: number) => {
+      if (!isMountedRef.current || hasPdfErrorRef.current) {
+        return;
+      }
       const clamped = PdfReaderService.clampPage(
         page,
-        pageCount > 0 ? pageCount : totalPages,
+        pageCount > 0 ? pageCount : totalPagesRef.current,
       );
       setCurrentPage(clamped);
+      currentPageRef.current = clamped;
       if (pageCount > 0) {
         setTotalPages(pageCount);
+        totalPagesRef.current = pageCount;
       }
       schedulePageSave(clamped);
+
+      if (
+        autoResumeTargetRef.current > 1 &&
+        clamped === autoResumeTargetRef.current
+      ) {
+        markAutoResumeSucceeded();
+      }
     },
-    [schedulePageSave, totalPages],
+    [markAutoResumeSucceeded, schedulePageSave],
   );
 
-  const handlePdfLoadError = useCallback((error: unknown) => {
-    clearLoadTimeout();
-    setPdfLoading(false);
-    setState('error');
-    setErrorMessage(PdfReaderService.formatPdfLoadError(error));
-  }, [clearLoadTimeout]);
+  const handlePdfLoadError = useCallback(
+    (error: unknown) => {
+      if (!isMountedRef.current) {
+        return;
+      }
+      hasPdfErrorRef.current = true;
+      clearLoadTimeout();
+      clearFallbackCheckTimer();
+      clearResumedDismissTimer();
+      setPdfLoading(false);
+      setIsPdfLoaded(false);
+      setAutoResumeStatus('none');
+      setState('error');
+      setErrorMessage(PdfReaderService.formatPdfLoadError(error));
+    },
+    [clearFallbackCheckTimer, clearLoadTimeout, clearResumedDismissTimer],
+  );
 
   const jumpToPage = useCallback(
     (page: number) => {
+      if (!isMountedRef.current || hasPdfErrorRef.current) {
+        return;
+      }
+      if (!isPdfLoaded) {
+        setShowLoadingJumpHint(true);
+        return;
+      }
       const clamped = PdfReaderService.clampPage(
         page,
-        totalPages > 0 ? totalPages : page,
+        totalPagesRef.current > 0 ? totalPagesRef.current : page,
       );
-      setCurrentPage(clamped);
+      if (clamped === lastJumpedPageRef.current && clamped === currentPageRef.current) {
+        setGoToPageVisible(false);
+        setGoToPageError(null);
+        return;
+      }
+      lastJumpedPageRef.current = clamped;
       pdfRef.current?.setPage(clamped);
-      void persistPageNow(clamped);
       setGoToPageVisible(false);
       setGoToPageError(null);
+      setShowLoadingJumpHint(false);
+      setAutoResumeStatus('none');
     },
-    [persistPageNow, totalPages],
+    [isPdfLoaded],
   );
 
+  const goToSavedPage = useCallback(() => {
+    if (savedPage <= 1) {
+      return;
+    }
+    jumpToPage(savedPage);
+    setAutoResumeStatus('none');
+  }, [jumpToPage, savedPage]);
+
+  const dismissFallbackBanner = useCallback(() => {
+    setAutoResumeStatus('none');
+  }, []);
+
+  const clearLoadingJumpHint = useCallback(() => {
+    setShowLoadingJumpHint(false);
+  }, []);
+
   const openGoToPage = useCallback(() => {
+    if (hasPdfErrorRef.current) {
+      return;
+    }
+    if (!isPdfLoaded) {
+      setShowLoadingJumpHint(true);
+      return;
+    }
     setGoToPageError(null);
     setGoToPageVisible(true);
-  }, []);
+  }, [isPdfLoaded]);
 
   const closeGoToPage = useCallback(() => {
     setGoToPageVisible(false);
@@ -280,25 +463,35 @@ export function usePdfReader(bookId: string | undefined): UsePdfReaderResult {
 
   const submitGoToPage = useCallback(
     (input: string) => {
-      const result = PdfReaderService.validatePageInput(input, totalPages);
+      if (!isMountedRef.current || hasPdfErrorRef.current) {
+        return;
+      }
+      if (!isPdfLoaded) {
+        setGoToPageError(PDF_STILL_LOADING_MESSAGE);
+        return;
+      }
+      const result = PdfReaderService.validatePageInput(input, totalPagesRef.current);
       if (!result.ok) {
         setGoToPageError(result.message);
         return;
       }
       jumpToPage(result.page);
     },
-    [jumpToPage, totalPages],
+    [isPdfLoaded, jumpToPage],
   );
 
   return {
     state,
     book,
     pdfUri,
-    initialPage,
+    initialResumePage,
+    savedPage,
     currentPage,
     totalPages,
     pdfLoading,
-    resumeHint,
+    isPdfLoaded,
+    autoResumeStatus,
+    showLoadingJumpHint,
     errorMessage,
     goToPageVisible,
     goToPageError,
@@ -307,9 +500,11 @@ export function usePdfReader(bookId: string | undefined): UsePdfReaderResult {
     closeGoToPage,
     submitGoToPage,
     jumpToPage,
+    goToSavedPage,
+    dismissFallbackBanner,
+    clearLoadingJumpHint,
     handlePdfLoadComplete,
     handlePdfPageChanged,
     handlePdfLoadError,
-    handlePdfLoadStart,
   };
 }

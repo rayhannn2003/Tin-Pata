@@ -1,7 +1,9 @@
 import { Platform } from 'react-native';
 
 import { getNotificationMessages } from '@/i18n/translate';
+import { BookRepository } from '@/db/repositories/BookRepository';
 import { SettingsRepository } from '@/db/repositories/SettingsRepository';
+import { GoalService } from '@/services/GoalService';
 import { LanguageService } from '@/services/LanguageService';
 import {
   loadNotificationsApi,
@@ -21,9 +23,17 @@ export { NotificationNativeError, NOTIFICATION_REBUILD_MESSAGE };
 
 const ANDROID_CHANNEL_ID = 'tin-pata-reminders';
 
-async function resolveNotificationMessages() {
+async function resolveSchedulingContext() {
   const language = await LanguageService.getLanguage();
-  return getNotificationMessages(language);
+  const bookCount = await BookRepository.count();
+  const book =
+    bookCount > 0
+      ? (await BookRepository.getContinueReadingBook()) ??
+        (await BookRepository.getLastReadingBook())
+      : null;
+  const messages = getNotificationMessages(language, book);
+  const goalCompleted = await GoalService.isTodayGoalCompleted();
+  return { bookCount, messages, goalCompleted };
 }
 
 let notificationsApi: NotificationsApi | null = null;
@@ -122,7 +132,7 @@ export const NotificationService = {
     }
     const Notifications = await requireNotifications();
     await configureHandler();
-    const messages = await resolveNotificationMessages();
+    const { messages } = await resolveSchedulingContext();
     await Notifications.setNotificationChannelAsync(ANDROID_CHANNEL_ID, {
       name: messages.channelName,
       importance: Notifications.AndroidImportance.HIGH,
@@ -227,7 +237,10 @@ export const NotificationService = {
     ]);
   },
 
-  async scheduleDailyReadingReminder(time: string): Promise<void> {
+  async scheduleDailyReadingReminder(
+    time: string,
+    messagesOverride?: ReturnType<typeof getNotificationMessages>,
+  ): Promise<void> {
     if (Platform.OS === 'web') {
       return;
     }
@@ -237,7 +250,7 @@ export const NotificationService = {
     await this.cancelReadingReminder();
 
     const { hour, minute } = parseTime(time);
-    const messages = await resolveNotificationMessages();
+    const messages = messagesOverride ?? (await resolveSchedulingContext()).messages;
     const id = await Notifications.scheduleNotificationAsync({
       content: {
         title: messages.dailyReading.title,
@@ -254,7 +267,10 @@ export const NotificationService = {
     await SettingsRepository.set(NOTIFICATION_SETTING_KEYS.readingReminderId, id);
   },
 
-  async scheduleMissedGoalReminder(time: string): Promise<void> {
+  async scheduleMissedGoalReminder(
+    time: string,
+    messagesOverride?: ReturnType<typeof getNotificationMessages>,
+  ): Promise<void> {
     if (Platform.OS === 'web') {
       return;
     }
@@ -264,7 +280,7 @@ export const NotificationService = {
     await this.cancelMissedGoalReminder();
 
     const { hour, minute } = parseTime(time);
-    const messages = await resolveNotificationMessages();
+    const messages = messagesOverride ?? (await resolveSchedulingContext()).messages;
     const id = await Notifications.scheduleNotificationAsync({
       content: {
         title: messages.missedGoal.title,
@@ -281,7 +297,10 @@ export const NotificationService = {
     await SettingsRepository.set(NOTIFICATION_SETTING_KEYS.missedGoalReminderId, id);
   },
 
-  async scheduleRescueReminder(time: string): Promise<void> {
+  async scheduleRescueReminder(
+    time: string,
+    messagesOverride?: ReturnType<typeof getNotificationMessages>,
+  ): Promise<void> {
     if (Platform.OS === 'web') {
       return;
     }
@@ -291,7 +310,7 @@ export const NotificationService = {
     await this.cancelRescueReminder();
 
     const { hour, minute } = parseTime(time);
-    const messages = await resolveNotificationMessages();
+    const messages = messagesOverride ?? (await resolveSchedulingContext()).messages;
     const id = await Notifications.scheduleNotificationAsync({
       content: {
         title: messages.rescue.title,
@@ -322,7 +341,7 @@ export const NotificationService = {
       );
     }
 
-    const messages = await resolveNotificationMessages();
+    const { messages } = await resolveSchedulingContext();
     await Notifications.scheduleNotificationAsync({
       content: {
         title: messages.test.title,
@@ -345,20 +364,36 @@ export const NotificationService = {
       return;
     }
 
+    const context = await resolveSchedulingContext();
+
     if (settings.readingReminderEnabled) {
-      await this.scheduleDailyReadingReminder(settings.readingReminderTime);
+      await this.scheduleDailyReadingReminder(
+        settings.readingReminderTime,
+        context.messages,
+      );
     } else {
       await this.cancelReadingReminder();
     }
 
     if (settings.missedGoalReminderEnabled) {
-      await this.scheduleMissedGoalReminder(settings.missedGoalReminderTime);
+      if (context.goalCompleted) {
+        await this.cancelMissedGoalReminder();
+      } else {
+        await this.scheduleMissedGoalReminder(
+          settings.missedGoalReminderTime,
+          context.messages,
+        );
+      }
     } else {
       await this.cancelMissedGoalReminder();
     }
 
     if (settings.rescueReminderEnabled) {
-      await this.scheduleRescueReminder(settings.rescueReminderTime);
+      if (context.bookCount === 0) {
+        await this.cancelRescueReminder();
+      } else {
+        await this.scheduleRescueReminder(settings.rescueReminderTime, context.messages);
+      }
     } else {
       await this.cancelRescueReminder();
     }

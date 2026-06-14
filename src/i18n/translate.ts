@@ -1,5 +1,6 @@
 import { translations, type TranslationTree } from '@/i18n/translations';
 import { DEFAULT_APP_LANGUAGE, type AppLanguage } from '@/types/language';
+import type { Book } from '@/types';
 
 export type TranslationParams = Record<string, string | number>;
 
@@ -45,16 +46,28 @@ export function translate(
   return key;
 }
 
-export function getNotificationMessages(language: AppLanguage) {
+export function getNotificationMessages(language: AppLanguage, book?: Book | null) {
+  const dailyBody = book
+    ? translate('notifications.continueBook', language, {
+        title: book.title,
+        page: book.currentPage,
+      })
+    : translate('notifications.onePage', language);
+
   return {
     channelName: translate('notifications.channelName', language),
     dailyReading: {
       title: translate('notifications.dailyTitle', language),
-      body: translate('notifications.onePage', language),
+      body: dailyBody,
     },
     missedGoal: {
       title: translate('notifications.missedTitle', language),
-      body: translate('notifications.reminder', language),
+      body: book
+        ? translate('notifications.continueBook', language, {
+            title: book.title,
+            page: book.currentPage,
+          })
+        : translate('notifications.reminder', language),
     },
     rescue: {
       title: translate('notifications.rescueTitle', language),
@@ -62,7 +75,12 @@ export function getNotificationMessages(language: AppLanguage) {
     },
     test: {
       title: translate('notifications.testTitle', language),
-      body: translate('notifications.testBody', language),
+      body: book
+        ? translate('notifications.continueBook', language, {
+            title: book.title,
+            page: book.currentPage,
+          })
+        : translate('notifications.testBody', language),
     },
   };
 }

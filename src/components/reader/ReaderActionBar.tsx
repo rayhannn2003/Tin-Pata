@@ -10,6 +10,7 @@ import { useThemeColors } from '@/hooks/useColorScheme';
 interface ReaderActionBarProps {
   isBookmarked: boolean;
   hasPageNote: boolean;
+  compact?: boolean;
   onBookmark: () => void;
   onNotes: () => void;
   onOpenLists: () => void;
@@ -21,32 +22,46 @@ interface ActionButtonProps {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   active?: boolean;
+  compact?: boolean;
   onPress: () => void;
   onLongPress?: () => void;
 }
 
-function ActionButton({ icon, label, active = false, onPress, onLongPress }: ActionButtonProps) {
+function ActionButton({
+  icon,
+  label,
+  active = false,
+  compact = false,
+  onPress,
+  onLongPress,
+}: ActionButtonProps) {
   const colors = useThemeColors();
 
   return (
     <Pressable
       onPress={onPress}
       onLongPress={onLongPress}
-      style={({ pressed }) => [styles.action, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.action,
+        compact && styles.actionCompact,
+        pressed && styles.pressed,
+      ]}
       accessibilityLabel={label}
     >
       <Ionicons
         name={icon}
-        size={22}
+        size={compact ? 20 : 22}
         color={active ? colors.tint : colors.textSecondary}
       />
-      <ThemedText
-        variant="caption"
-        style={{ color: active ? colors.tint : colors.textSecondary, fontSize: 10 }}
-        numberOfLines={1}
-      >
-        {label}
-      </ThemedText>
+      {!compact ? (
+        <ThemedText
+          variant="caption"
+          style={{ color: active ? colors.tint : colors.textSecondary, fontSize: 10 }}
+          numberOfLines={1}
+        >
+          {label}
+        </ThemedText>
+      ) : null}
     </Pressable>
   );
 }
@@ -54,6 +69,7 @@ function ActionButton({ icon, label, active = false, onPress, onLongPress }: Act
 export function ReaderActionBar({
   isBookmarked,
   hasPageNote,
+  compact = false,
   onBookmark,
   onNotes,
   onOpenLists,
@@ -68,6 +84,7 @@ export function ReaderActionBar({
     <View
       style={[
         styles.container,
+        compact && styles.containerCompact,
         {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
@@ -79,20 +96,33 @@ export function ReaderActionBar({
         icon={isBookmarked ? 'bookmark' : 'bookmark-outline'}
         label={t('reader.bookmark')}
         active={isBookmarked}
+        compact={compact}
         onPress={onBookmark}
       />
       <ActionButton
         icon={hasPageNote ? 'document-text' : 'document-text-outline'}
         label={t('reader.note')}
         active={hasPageNote}
+        compact={compact}
         onPress={onNotes}
       />
-      <ActionButton icon="list-outline" label={t('reader.lists')} onPress={onOpenLists} />
-      <ActionButton icon="navigate-outline" label={t('reader.page')} onPress={onGoToPage} />
+      <ActionButton
+        icon="list-outline"
+        label={t('reader.lists')}
+        compact={compact}
+        onPress={onOpenLists}
+      />
+      <ActionButton
+        icon="navigate-outline"
+        label={t('reader.page')}
+        compact={compact}
+        onPress={onGoToPage}
+      />
       <Pressable
         onPress={onFinish}
         style={({ pressed }) => [
           styles.finishButton,
+          compact && styles.finishButtonCompact,
           { backgroundColor: colors.tint, opacity: pressed ? 0.85 : 1 },
         ]}
         accessibilityLabel={t('reader.finishSession')}
@@ -115,11 +145,17 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     gap: Spacing.xs,
   },
+  containerCompact: {
+    paddingTop: Spacing.xs,
+  },
   action: {
     flex: 1,
     alignItems: 'center',
     gap: 2,
     paddingVertical: Spacing.xs,
+  },
+  actionCompact: {
+    paddingVertical: 2,
   },
   finishButton: {
     borderRadius: Radius.sm,
@@ -127,6 +163,10 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     minWidth: 64,
     alignItems: 'center',
+  },
+  finishButtonCompact: {
+    minWidth: 52,
+    paddingHorizontal: Spacing.sm,
   },
   finishLabel: {
     color: '#FFFFFF',

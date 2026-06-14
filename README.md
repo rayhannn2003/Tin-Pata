@@ -33,10 +33,13 @@ A personal, offline-first mobile app for building a consistent PDF reading habit
 
 ## Getting Started
 
-**PDF reader requires an Android development build — not Expo Go.**
+**Expo Go is not supported.** The PDF reader requires a **development build**.
+
+This project uses **CNG / Prebuild** — `android/` and `ios/` are generated locally and are **not committed**. See [docs/CNG_SETUP.md](docs/CNG_SETUP.md).
 
 ```bash
 npm install
+npx expo prebuild --clean --platform android
 npx expo run:android
 ```
 
@@ -44,18 +47,24 @@ For day-to-day JS changes after the dev build is installed:
 
 ```bash
 npx expo start
+# USB: adb reverse tcp:8081 tcp:8081
+```
+
+Verify project health:
+
+```bash
+npx expo-doctor
 ```
 
 ---
 
 ## Brand assets
 
-App icon: `assets/images/updatedIcon.png` (1254×1254 PNG). After changing icon or name, rebuild the native app:
+App icon: `assets/images/updatedIcon.png` (1254×1254 PNG). After changing icon or native plugins, regenerate native projects:
 
 ```bash
-npx expo prebuild --platform android
-cd android && ./gradlew app:assembleDebug
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+npx expo prebuild --clean --platform android
+npx expo run:android
 ```
 
 See [docs/BRAND_ASSETS.md](docs/BRAND_ASSETS.md) for paths and sizes.
@@ -77,6 +86,8 @@ Package: `com.readinghabit.tracker` · App name: **তিনপাতা (Tin Pa
 | Document | Description |
 |----------|-------------|
 | [Brand Assets](docs/BRAND_ASSETS.md) | Icon/splash paths and sizes |
+| [CNG / Prebuild Setup](docs/CNG_SETUP.md) | Native folder policy, clean rebuild |
+| [Reader Stability Checklist](docs/READER_STABILITY_TEST_CHECKLIST.md) | PDF reader QA (v1.1.2) |
 | [Manual Test Checklist](docs/MANUAL_TEST_CHECKLIST.md) | v1.0 release QA |
 | [Release Build Guide](docs/RELEASE_BUILD_GUIDE.md) | Dev + production APK |
 | [Development Roadmap](docs/DEVELOPMENT_ROADMAP.md) | Phased plan |

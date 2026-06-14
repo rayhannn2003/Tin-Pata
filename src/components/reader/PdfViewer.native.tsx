@@ -1,4 +1,12 @@
-import { forwardRef, useMemo, useState } from 'react';
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { loadNativePdfComponent } from '@/components/reader/pdfNativeModule';
@@ -6,15 +14,67 @@ import type { PdfRef, PdfViewerProps } from '@/components/reader/types';
 import { ThemedText } from '@/components/ui/ThemedText';
 import { useThemeColors } from '@/hooks/useColorScheme';
 
+/** Stable layout: auto fit, vertical continuous scroll. Auto-resume via initial `page` prop only. */
+const STABLE_FIT_POLICY = 2 as const;
+const STABLE_ENABLE_PAGING = false;
+
 export type { PdfRef, PdfViewerProps };
 
 export const PdfViewer = forwardRef<PdfRef, PdfViewerProps>(function PdfViewer(
-  { uri, page, onLoadComplete, onPageChanged, onError },
+  { uri, initialPage, onLoadComplete, onPageChanged, onError },
   ref,
 ) {
   const colors = useThemeColors();
   const [layout, setLayout] = useState({ width: 0, height: 0 });
   const PdfComponent = useMemo(() => loadNativePdfComponent(), []);
+
+  /** Never changes after first mount — avoids reactive page prop remounts/jumps. */
+  const frozenInitialPageRef = useRef(Math.max(1, Math.floor(initialPage)));
+
+  const nativePdfRef = useRef<{ setPage: (page: number) => void } | null>(null);
+  const isMountedRef = useRef(true);
+  const isLoadedRef = useRef(false);
+  const hasErrorRef = useRef(false);
+  const totalPagesRef = useRef(0);
+  const lastSetPageRef = useRef(frozenInitialPageRef.current);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const clampPage = useCallback((page: number): number => {
+    const normalized = Math.max(1, Math.floor(page));
+    if (totalPagesRef.current > 0) {
+      return Math.min(normalized, totalPagesRef.current);
+    }
+    return normalized;
+  }, []);
+
+  const safeSetPage = useCallback((page: number) => {
+    if (!isMountedRef.current || !isLoadedRef.current || hasErrorRef.current) {
+      return false;
+    }
+    const clamped = clampPage(page);
+    if (clamped === lastSetPageRef.current) {
+      return false;
+    }
+    lastSetPageRef.current = clamped;
+    nativePdfRef.current?.setPage(clamped);
+    return true;
+  }, [clampPage]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      setPage(pageNumber: number) {
+        safeSetPage(pageNumber);
+      },
+    }),
+    [safeSetPage],
+  );
 
   const hasSize = layout.width > 0 && layout.height > 0;
 
@@ -44,20 +104,35 @@ export const PdfViewer = forwardRef<PdfRef, PdfViewerProps>(function PdfViewer(
     >
       {hasSize ? (
         <PdfComponent
-          ref={ref}
+          ref={nativePdfRef}
           source={{ uri, cache: false }}
-          page={page}
+          page={frozenInitialPageRef.current}
           trustAllCerts={false}
-          enablePaging={false}
+          enablePaging={STABLE_ENABLE_PAGING}
           spacing={4}
-          fitPolicy={2}
-          onLoadComplete={(numberOfPages) => {
+          fitPolicy={STABLE_FIT_POLICY}
+          onLoadComplete={(numberOfPages: number) => {
+            if (!isMountedRef.current || hasErrorRef.current) {
+              return;
+            }
+            isLoadedRef.current = true;
+            totalPagesRef.current = numberOfPages;
+            lastSetPageRef.current = frozenInitialPageRef.current;
             onLoadComplete(numberOfPages);
           }}
-          onPageChanged={(currentPage, numberOfPages) => {
+          onPageChanged={(currentPage: number, numberOfPages: number) => {
+            if (!isMountedRef.current || hasErrorRef.current) {
+              return;
+            }
+            if (numberOfPages > 0) {
+              totalPagesRef.current = numberOfPages;
+            }
+            lastSetPageRef.current = currentPage;
             onPageChanged(currentPage, numberOfPages);
           }}
-          onError={(error) => {
+          onError={(error: unknown) => {
+            hasErrorRef.current = true;
+            isLoadedRef.current = false;
             onError(error);
           }}
           renderActivityIndicator={() => (

@@ -14,6 +14,7 @@ import { SessionRepository } from '@/db/repositories/SessionRepository';
 import { SettingsRepository } from '@/db/repositories/SettingsRepository';
 import { APP_NAME_BN } from '@/constants/brand';
 import { NOTIFICATION_SETTING_KEYS } from '@/types/notification';
+import { LAST_BACKUP_AT_KEY, PORTABLE_READER_SETTING_KEYS } from '@/types/reader';
 import {
   BACKUP_EXPORT_VERSION,
   type BackupPayload,
@@ -26,6 +27,8 @@ const PORTABLE_SETTING_KEYS = new Set<string>([
   'theme_preference',
   'theme',
   'has_seen_onboarding',
+  LAST_BACKUP_AT_KEY,
+  ...PORTABLE_READER_SETTING_KEYS,
   NOTIFICATION_SETTING_KEYS.readingReminderEnabled,
   NOTIFICATION_SETTING_KEYS.readingReminderTime,
   NOTIFICATION_SETTING_KEYS.missedGoalReminderEnabled,
@@ -36,6 +39,11 @@ const PORTABLE_SETTING_KEYS = new Set<string>([
 
 function shouldIncludeSetting(key: string): boolean {
   return PORTABLE_SETTING_KEYS.has(key);
+}
+
+function formatBackupFileName(date = new Date()): string {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `tin-pata-backup-${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}-${pad(date.getHours())}-${pad(date.getMinutes())}.json`;
 }
 
 async function getAllBookmarks(): Promise<Bookmark[]> {
@@ -131,7 +139,7 @@ export const BackupService = {
     const settings = allSettings.filter((s) => shouldIncludeSetting(s.key));
 
     return {
-      app_version: Constants.expoConfig?.version ?? '1.0.0',
+      app_version: Constants.expoConfig?.version ?? '1.1.0',
       export_version: BACKUP_EXPORT_VERSION,
       exported_at: new Date().toISOString(),
       app_name: APP_NAME_BN,
@@ -184,30 +192,7 @@ export const BackupService = {
     return { valid: true, errors: [], payload: data as unknown as BackupPayload };
   },
 
-  async exportData(): Promise<string> {
-    if (Platform.OS === 'web') {
-      throw new Error('Export is not available on web preview.');
-    }
-
-    const payload = await this.createBackupPayload();
-    const json = JSON.stringify(payload, null, 2);
-    const fileName = `tin-pata-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    const file = new File(Paths.cache, fileName);
-    file.write(json);
-
-    const canShare = await Sharing.isAvailableAsync();
-    if (canShare) {
-      await Sharing.shareAsync(file.uri, {
-        mimeType: 'application/json',
-        dialogTitle: 'Tin Pata backup',
-        UTI: 'public.json',
-      });
-    }
-
-    return file.uri;
-  },
-
-  async importDataFromFile(): Promise<BackupPayload> {
+  async parseBackupFromPicker(): Promise<BackupPayload> {
     if (Platform.OS === 'web') {
       throw new Error('Import is not available on web preview.');
     }
@@ -236,8 +221,42 @@ export const BackupService = {
       throw new Error(validation.errors.join('\n'));
     }
 
-    await this.replaceDataFromBackup(validation.payload);
     return validation.payload;
+  },
+
+  async exportData(): Promise<string> {
+    if (Platform.OS === 'web') {
+      throw new Error('Export is not available on web preview.');
+    }
+
+    const payload = await this.createBackupPayload();
+    const json = JSON.stringify(payload, null, 2);
+    const fileName = formatBackupFileName();
+    const file = new File(Paths.cache, fileName);
+    file.write(json);
+
+    await SettingsRepository.set(LAST_BACKUP_AT_KEY, payload.exported_at);
+
+    const canShare = await Sharing.isAvailableAsync();
+    if (canShare) {
+      await Sharing.shareAsync(file.uri, {
+        mimeType: 'application/json',
+        dialogTitle: 'Tin Pata backup',
+        UTI: 'public.json',
+      });
+    }
+
+    return file.uri;
+  },
+
+  async getLastBackupAt(): Promise<string | null> {
+    return SettingsRepository.get(LAST_BACKUP_AT_KEY);
+  },
+
+  async importDataFromFile(): Promise<BackupPayload> {
+    const payload = await this.parseBackupFromPicker();
+    await this.replaceDataFromBackup(payload);
+    return payload;
   },
 
   async replaceDataFromBackup(payload: BackupPayload): Promise<void> {

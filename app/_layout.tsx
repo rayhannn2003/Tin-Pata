@@ -61,6 +61,13 @@ function RootStack() {
       <Stack screenOptions={{ headerShown: false, header: () => null }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
+          name="book/[bookId]"
+          options={{
+            headerShown: false,
+            presentation: 'card',
+          }}
+        />
+        <Stack.Screen
           name="reader/[bookId]"
           options={{
             headerShown: false,

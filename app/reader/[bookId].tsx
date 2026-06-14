@@ -1,12 +1,14 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, BackHandler, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 
 import { FeedbackBanner } from '@/components/common/FeedbackBanner';
 import { BookmarkListModal } from '@/components/reader/BookmarkListModal';
 import { FinishSessionModal } from '@/components/reader/FinishSessionModal';
 import { GoToPageModal } from '@/components/reader/GoToPageModal';
+import { LastReadBanner } from '@/components/reader/LastReadBanner';
 import { NoteEditorModal } from '@/components/reader/NoteEditorModal';
 import { NotesListModal } from '@/components/reader/NotesListModal';
 import { PdfReaderToolbar } from '@/components/reader/PdfReaderToolbar';
@@ -20,6 +22,7 @@ import { useBookmarks } from '@/features/bookmarks/useBookmarks';
 import { useBookNotes } from '@/features/notes/useBookNotes';
 import { usePageNotes } from '@/features/notes/usePageNotes';
 import { usePdfReader } from '@/features/reader/usePdfReader';
+import { useReaderPreferences } from '@/features/reader/useReaderPreferences';
 import { useRescueMode } from '@/features/rescue/useRescueMode';
 import { useRescueProgress } from '@/features/rescue/useRescueProgress';
 import { useReadingSession } from '@/features/sessions/useReadingSession';
@@ -33,11 +36,15 @@ import { useTranslation } from '@/i18n/useTranslation';
 import { Spacing } from '@/constants/layout';
 import { useThemeColors } from '@/hooks/useColorScheme';
 
+import { DEFAULT_READER_PREFERENCES } from '@/types/reader';
+
 export default function ReaderScreen() {
   const { bookId } = useLocalSearchParams<{ bookId: string }>();
   const router = useRouter();
   const colors = useThemeColors();
   const { t } = useTranslation();
+  const { preferences } = useReaderPreferences();
+  const readerPrefs = preferences ?? DEFAULT_READER_PREFERENCES;
   const { rescueMode, isRescueActive } = useRescueMode();
   const rescueStartPageRef = useRef<number>(1);
   const rescueCapturedRef = useRef(false);
@@ -46,11 +53,13 @@ export default function ReaderScreen() {
     state,
     book,
     pdfUri,
-    initialPage,
+    initialResumePage,
+    savedPage,
     currentPage,
     totalPages,
     pdfLoading,
-    resumeHint,
+    autoResumeStatus,
+    showLoadingJumpHint,
     errorMessage,
     goToPageVisible,
     goToPageError,
@@ -59,10 +68,12 @@ export default function ReaderScreen() {
     closeGoToPage,
     submitGoToPage,
     jumpToPage,
+    goToSavedPage,
+    dismissFallbackBanner,
+    clearLoadingJumpHint,
     handlePdfLoadComplete,
     handlePdfPageChanged,
     handlePdfLoadError,
-    handlePdfLoadStart,
   } = usePdfReader(bookId);
 
   useEffect(() => {
@@ -93,7 +104,7 @@ export default function ReaderScreen() {
     clearSaveSuccess,
   } = useReadingSession({
     bookId,
-    startPage: initialPage,
+    startPage: currentPage,
     currentPage,
     enabled: sessionEnabled,
   });
@@ -135,12 +146,20 @@ export default function ReaderScreen() {
     return () => clearTimeout(timer);
   }, [clearSaveSuccess, router, saveSuccessMessage]);
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     void (async () => {
       await autoSaveIfNeeded();
       router.back();
     })();
-  };
+  }, [autoSaveIfNeeded, router]);
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      handleBack();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [handleBack]);
 
   const handleFinishSave = (details: {
     focus: SessionFocusOption | null;
@@ -249,6 +268,16 @@ export default function ReaderScreen() {
 
   const hasPageNote = bookNotes.some((n) => n.pageNumber === currentPage);
 
+  useEffect(() => {
+    if (state !== 'ready' || !readerPrefs.keepAwake) {
+      return;
+    }
+    void activateKeepAwakeAsync('tin-pata-reader');
+    return () => {
+      deactivateKeepAwake('tin-pata-reader');
+    };
+  }, [readerPrefs.keepAwake, state]);
+
   if (state === 'loading_book') {
     return (
       <SafeAreaView
@@ -274,7 +303,7 @@ export default function ReaderScreen() {
         <ReaderErrorView
           title={t('reader.devBuildRequired')}
           message={t('reader.devBuildMessage')}
-          hint="Run: npx expo run:android"
+          hint="Run: npx expo prebuild --clean --platform android && npx expo run:android"
           onBack={() => router.back()}
         />
       </SafeAreaView>
@@ -308,6 +337,9 @@ export default function ReaderScreen() {
           totalPages={totalPages}
           elapsedSeconds={elapsedSeconds}
           timerPaused={isPaused}
+          showTimer={readerPrefs.showTimer}
+          showProgress={readerPrefs.showProgress}
+          compact={readerPrefs.compactActions}
           onBack={handleBack}
         />
 
@@ -323,6 +355,14 @@ export default function ReaderScreen() {
           <FeedbackBanner message={saveSuccessMessage} variant="success" />
         ) : null}
 
+        {showLoadingJumpHint ? (
+          <FeedbackBanner
+            message={t('reader.pdfStillLoading')}
+            variant="info"
+            onDismiss={clearLoadingJumpHint}
+          />
+        ) : null}
+
         {isRescueActive && rescueBannerMessage ? (
           <RescueBanner
             message={rescueBannerMessage}
@@ -330,12 +370,34 @@ export default function ReaderScreen() {
           />
         ) : null}
 
-        {!isRescueActive && resumeHint ? (
-          <FeedbackBanner message={resumeHint} variant="info" />
+        {!isRescueActive && autoResumeStatus === 'opening' && savedPage > 1 ? (
+          <FeedbackBanner
+            message={t('reader.openingPage', { page: savedPage })}
+            variant="info"
+            autoDismissMs={0}
+          />
+        ) : null}
+
+        {!isRescueActive && autoResumeStatus === 'resumed' && savedPage > 1 ? (
+          <FeedbackBanner
+            message={t('reader.resumedFromPage', { page: savedPage })}
+            variant="success"
+            autoDismissMs={0}
+          />
+        ) : null}
+
+        {!isRescueActive && autoResumeStatus === 'fallback' && savedPage > 1 ? (
+          <LastReadBanner
+            message={t('reader.lastReadPage', { page: savedPage })}
+            hint={t('reader.autoResumeUnavailable')}
+            actionLabel={t('reader.goToSavedPage', { page: savedPage })}
+            onGoToPage={goToSavedPage}
+            onDismiss={dismissFallbackBanner}
+          />
         ) : null}
 
         {pdfLoading ? (
-          <View style={styles.pdfLoading}>
+          <View style={styles.pdfLoading} pointerEvents="none">
             <ActivityIndicator color={colors.tint} size="large" />
             <ThemedText variant="caption" secondary>
               {t('reader.loadingPdf')}
@@ -346,9 +408,7 @@ export default function ReaderScreen() {
         <ReaderPdfContent
           pdfRef={pdfRef}
           uri={pdfUri}
-          page={initialPage}
-          loading={pdfLoading}
-          onLoadStart={handlePdfLoadStart}
+          initialPage={initialResumePage}
           onLoadComplete={handlePdfLoadComplete}
           onPageChanged={handlePdfPageChanged}
           onError={handlePdfLoadError}
@@ -358,6 +418,7 @@ export default function ReaderScreen() {
       <ReaderActionBar
         isBookmarked={isPageBookmarked(currentPage)}
         hasPageNote={hasPageNote}
+        compact={readerPrefs.compactActions}
         onBookmark={handleBookmarkPress}
         onNotes={() => openNoteEditor(currentPage)}
         onOpenLists={() => setListsVisible(true)}

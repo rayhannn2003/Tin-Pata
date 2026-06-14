@@ -38,3 +38,27 @@ export interface BackupValidationResult {
   errors: string[];
   payload?: BackupPayload;
 }
+
+export interface BackupPreview {
+  bookCount: number;
+  sessionCount: number;
+  noteCount: number;
+  bookmarkCount: number;
+  reflectionCount: number;
+  exportedAt: string;
+  appVersion: string;
+  exportVersion: number;
+}
+
+export function buildBackupPreview(payload: BackupPayload): BackupPreview {
+  return {
+    bookCount: payload.books.length,
+    sessionCount: payload.reading_sessions.length,
+    noteCount: payload.notes.length,
+    bookmarkCount: payload.bookmarks.length,
+    reflectionCount: payload.reflections.length,
+    exportedAt: payload.exported_at,
+    appVersion: payload.app_version,
+    exportVersion: payload.export_version,
+  };
+}

@@ -2,7 +2,11 @@
 .pm2
 **/*.sock
 
-# Build caches (android/ source is still uploaded)
+# Generated native projects — EAS Build runs prebuild from app.json
+android/
+ios/
+
+# Build caches (when android/ exists locally after prebuild)
 android/build
 android/app/build
 android/.gradle

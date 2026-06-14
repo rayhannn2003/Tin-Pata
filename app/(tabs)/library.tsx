@@ -116,6 +116,15 @@ export default function LibraryScreen() {
         },
       },
       {
+        text: t('library.markPaused'),
+        onPress: () => {
+          void (async () => {
+            await BookService.updateBookStatus(book.id, 'paused');
+            await refresh();
+          })();
+        },
+      },
+      {
         text: t('common.delete'),
         style: 'destructive',
         onPress: () => handleDelete(book.id, book.title),
@@ -235,7 +244,10 @@ export default function LibraryScreen() {
               <BookListItem
                 key={book.id}
                 book={book}
-                onPress={() => router.push(`/reader/${book.id}`)}
+                onPress={() =>
+                  router.push({ pathname: '/book/[bookId]', params: { bookId: book.id } })
+                }
+                onContinue={() => router.push(`/reader/${book.id}`)}
                 onMenu={() => handleBookMenu(book)}
                 deleting={deletingId === book.id}
               />
