@@ -12,9 +12,10 @@ type DbState = {
   instance: SQLiteDatabase | null;
   openPromise: Promise<SQLiteDatabase> | null;
   initPromise: Promise<void> | null;
-  closePromise: Promise<void> | null;
   taskQueue: Promise<unknown>;
   activeDepth: number;
+  /** Bumped on dev fast refresh so callers can re-init stale connections. */
+  epoch: number;
 };
 
 function getState(): DbState {
@@ -24,37 +25,51 @@ function getState(): DbState {
       instance: null,
       openPromise: null,
       initPromise: null,
-      closePromise: null,
       taskQueue: Promise.resolve(),
       activeDepth: 0,
+      epoch: 0,
     };
   }
   return g[DB_STATE_KEY];
 }
 
-// Fast refresh re-runs this module — close the previous native handle before reopening.
-if (__DEV__) {
-  const state = getState();
-  const stale = state.instance;
+function isStaleDbError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  const message = error.message.toLowerCase();
+  return (
+    message.includes('already released') ||
+    message.includes('nativestatement') ||
+    message.includes('database is locked') ||
+    message.includes('prepareasync')
+  );
+}
+
+function invalidateConnection(state: DbState): void {
   state.instance = null;
   state.openPromise = null;
   state.initPromise = null;
-  if (stale) {
-    state.closePromise = stale.closeAsync().catch(() => {
-      // Ignore close errors during hot reload.
-    });
-  }
+}
+
+// Fast refresh re-runs this module — drop stale JS handles without closeAsync
+// (native SharedObjects may already be released; closing races in-flight work).
+if (__DEV__) {
+  const state = getState();
+  state.epoch += 1;
+  invalidateConnection(state);
+  state.activeDepth = 0;
+  state.taskQueue = state.taskQueue.catch(() => undefined);
 }
 
 export const isDatabaseNative = true;
 
+export function getDatabaseEpoch(): number {
+  return getState().epoch;
+}
+
 async function openDatabaseConnection(): Promise<SQLiteDatabase> {
   const state = getState();
-
-  if (state.closePromise) {
-    await state.closePromise;
-    state.closePromise = null;
-  }
 
   if (state.instance) {
     return state.instance;
@@ -77,20 +92,44 @@ async function openDatabaseConnection(): Promise<SQLiteDatabase> {
   return state.openPromise;
 }
 
+async function executeDatabaseTask<T>(
+  operation: (db: SQLiteDatabase) => Promise<T>,
+): Promise<T> {
+  const state = getState();
+  const startEpoch = state.epoch;
+  const maxAttempts = __DEV__ ? 3 : 1;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    try {
+      const db = await openDatabaseConnection();
+      if (__DEV__ && startEpoch !== state.epoch) {
+        invalidateConnection(state);
+        continue;
+      }
+      return await operation(db);
+    } catch (error) {
+      if (__DEV__ && attempt < maxAttempts - 1 && isStaleDbError(error)) {
+        invalidateConnection(state);
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  throw new Error('Database operation failed after retries.');
+}
+
 /** Serializes SQLite work — expo-sqlite rejects overlapping async statements on one connection. */
 export function withDatabase<T>(
   operation: (db: SQLiteDatabase) => Promise<T>,
 ): Promise<T> {
   const state = getState();
 
-  const run = async (): Promise<T> => {
+  const run = (): Promise<T> => {
     state.activeDepth += 1;
-    try {
-      const db = await openDatabaseConnection();
-      return await operation(db);
-    } finally {
+    return executeDatabaseTask(operation).finally(() => {
       state.activeDepth -= 1;
-    }
+    });
   };
 
   if (state.activeDepth > 0) {
@@ -98,7 +137,7 @@ export function withDatabase<T>(
   }
 
   const task = state.taskQueue.then(run);
-  state.taskQueue = task.catch(() => {});
+  state.taskQueue = task.catch(() => undefined);
   return task;
 }
 
@@ -133,7 +172,7 @@ async function runMigrations(db: SQLiteDatabase): Promise<void> {
   for (const migration of MIGRATIONS) {
     const applied = await db.getFirstAsync<{ version: number }>(
       'SELECT version FROM schema_migrations WHERE version = ?',
-      [migration.version],
+      migration.version,
     );
 
     if (applied) {
@@ -170,7 +209,6 @@ export async function closeDatabase(): Promise<void> {
 
   if (state.instance) {
     await state.instance.closeAsync();
-    state.instance = null;
-    state.initPromise = null;
+    invalidateConnection(state);
   }
 }

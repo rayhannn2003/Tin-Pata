@@ -16,6 +16,10 @@ export async function withDatabase<T>(
   return getDatabase();
 }
 
+export function getDatabaseEpoch(): number {
+  return 0;
+}
+
 export async function initializeDatabase(): Promise<void> {
   // No-op: allow UI preview in the browser without loading expo-sqlite WASM.
 }

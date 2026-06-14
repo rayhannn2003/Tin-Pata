@@ -11,7 +11,7 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { useColorScheme as useSystemColorScheme } from 'react-native';
 
 import { Colors, type ColorScheme } from '@/constants/theme';
-import { initializeDatabase } from '@/db/database';
+import { getDatabaseEpoch, initializeDatabase } from '@/db/database';
 import { ThemedText } from '@/components/ui/ThemedText';
 
 interface DatabaseContextValue {
@@ -46,6 +46,21 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void init();
+  }, [init]);
+
+  useEffect(() => {
+    if (!__DEV__) {
+      return;
+    }
+    let seenEpoch = getDatabaseEpoch();
+    const timer = setInterval(() => {
+      const epoch = getDatabaseEpoch();
+      if (epoch !== seenEpoch) {
+        seenEpoch = epoch;
+        void init();
+      }
+    }, 300);
+    return () => clearInterval(timer);
   }, [init]);
 
   const value = useMemo(
