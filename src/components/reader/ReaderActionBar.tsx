@@ -17,6 +17,7 @@ interface ReaderActionBarProps {
   onOpenComfort: () => void;
   onGoToPage: () => void;
   onFinish: () => void;
+  onEnterFocus: () => void;
 }
 
 interface ActionButtonProps {
@@ -77,6 +78,7 @@ export function ReaderActionBar({
   onOpenComfort,
   onGoToPage,
   onFinish,
+  onEnterFocus,
 }: ReaderActionBarProps) {
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
@@ -125,6 +127,12 @@ export function ReaderActionBar({
         label={t('reader.page')}
         compact={compact}
         onPress={onGoToPage}
+      />
+      <ActionButton
+        icon="scan-outline"
+        label={t('focus.actionLabel')}
+        compact={compact}
+        onPress={onEnterFocus}
       />
       <Pressable
         onPress={onFinish}

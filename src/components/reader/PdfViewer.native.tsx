@@ -20,7 +20,7 @@ export type { PdfRef, PdfViewerProps };
 
 export const PdfViewer = memo(
   forwardRef<PdfRef, PdfViewerProps>(function PdfViewer(
-    { uri, initialPage, onLoadComplete, onPageChanged, onError },
+    { uri, initialPage, fitPolicy, enablePaging, onLoadComplete, onPageChanged, onError },
     ref,
   ) {
     const colors = useThemeColors();
@@ -29,6 +29,10 @@ export const PdfViewer = memo(
 
     /** Never changes after first mount for a given PDF URI. */
     const frozenInitialPageRef = useRef(Math.max(1, Math.floor(initialPage)));
+    const frozenFitPolicyRef = useRef(fitPolicy ?? STABLE_READER_PDF_BEHAVIOR.fitPolicy);
+    const frozenEnablePagingRef = useRef(
+      enablePaging ?? STABLE_READER_PDF_BEHAVIOR.enablePaging,
+    );
 
     const nativePdfRef = useRef<{ setPage: (page: number) => void } | null>(null);
     const isMountedRef = useRef(true);
@@ -163,9 +167,9 @@ export const PdfViewer = memo(
             source={source}
             page={frozenInitialPageRef.current}
             trustAllCerts={false}
-            enablePaging={STABLE_READER_PDF_BEHAVIOR.enablePaging}
+            enablePaging={frozenEnablePagingRef.current}
             spacing={4}
-            fitPolicy={STABLE_READER_PDF_BEHAVIOR.fitPolicy}
+            fitPolicy={frozenFitPolicyRef.current}
             onLoadComplete={handleLoadComplete}
             onPageChanged={handlePageChanged}
             onError={handleError}

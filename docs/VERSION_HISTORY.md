@@ -2,7 +2,23 @@
 
 Tin Pata (তিনপাতা) — release notes for personal-use builds.
 
-**Current stable:** **v1.2.0** (June 2026)
+**Current stable:** **v1.3.0** (June 2026)
+
+---
+
+## v1.3.0 — Safe reader modes (Focus, Fit, Scroll)
+
+Reader customization release with session-frozen PDF props for stability.
+
+**Highlights**
+
+- **Focus Mode** — hides toolbar and action bar; exit via Android back / edge swipe; optional default-on in settings
+- **Fit Mode** — Auto, Fit Width, Fit Page; frozen at reader open via `fitPolicy`
+- **Scroll Mode** — Vertical (continuous) or Horizontal (page-by-page paging); frozen at reader open via `enablePaging`
+- Fit and scroll changes apply **next time you open the reader**, never on a mounted PDF
+- English and Bengali for all new reader preference labels
+
+**Internal milestones:** v1.3A focus mode · v1.3B fit mode · v1.3C scroll mode & release QA
 
 ---
 

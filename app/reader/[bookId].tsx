@@ -55,6 +55,8 @@ export default function ReaderScreen() {
     state,
     book,
     pdfUri,
+    sessionFitPolicy,
+    sessionEnablePaging,
     initialResumePage,
     savedPage,
     currentPage,
@@ -137,6 +139,23 @@ export default function ReaderScreen() {
   const [noteSaving, setNoteSaving] = useState(false);
   const [noteError, setNoteError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [focusMode, setFocusMode] = useState(false);
+  const focusInitializedRef = useRef(false);
+
+  useEffect(() => {
+    if (state === 'ready' && readerPrefs.defaultFocusMode && !focusInitializedRef.current) {
+      setFocusMode(true);
+      focusInitializedRef.current = true;
+    }
+  }, [readerPrefs.defaultFocusMode, state]);
+
+  const exitFocusMode = useCallback(() => {
+    setFocusMode(false);
+  }, []);
+
+  const enterFocusMode = useCallback(() => {
+    setFocusMode(true);
+  }, []);
 
   useEffect(() => {
     if (!saveSuccessMessage) {
@@ -158,11 +177,15 @@ export default function ReaderScreen() {
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (focusMode) {
+        exitFocusMode();
+        return true;
+      }
       handleBack();
       return true;
     });
     return () => subscription.remove();
-  }, [handleBack]);
+  }, [exitFocusMode, focusMode, handleBack]);
 
   const handleFinishSave = (details: {
     focus: SessionFocusOption | null;
@@ -364,20 +387,22 @@ export default function ReaderScreen() {
   return (
     <SafeAreaView
       style={[styles.root, { backgroundColor: colors.background }]}
-      edges={['top', 'left', 'right']}
+      edges={focusMode ? ['top', 'left', 'right', 'bottom'] : ['top', 'left', 'right']}
     >
       <View style={styles.content}>
-        <PdfReaderToolbar
-          title={book.title}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          elapsedSeconds={elapsedSeconds}
-          timerPaused={isPaused}
-          showTimer={readerPrefs.showTimer}
-          showProgress={readerPrefs.showProgress}
-          compact={readerPrefs.compactActions}
-          onBack={handleBack}
-        />
+        {!focusMode ? (
+          <PdfReaderToolbar
+            title={book.title}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            elapsedSeconds={elapsedSeconds}
+            timerPaused={isPaused}
+            showTimer={readerPrefs.showTimer}
+            showProgress={readerPrefs.showProgress}
+            compact={readerPrefs.compactActions}
+            onBack={handleBack}
+          />
+        ) : null}
 
         {feedback ? (
           <FeedbackBanner
@@ -456,23 +481,29 @@ export default function ReaderScreen() {
           pdfRef={pdfRef}
           uri={pdfUri}
           initialPage={initialResumePage}
+          fitPolicy={sessionFitPolicy}
+          enablePaging={sessionEnablePaging}
           onLoadComplete={handlePdfLoadComplete}
           onPageChanged={handlePdfPageChanged}
           onError={handlePdfLoadError}
         />
+
       </View>
 
-      <ReaderActionBar
-        isBookmarked={isPageBookmarked(currentPage)}
-        hasPageNote={hasPageNote}
-        compact={readerPrefs.compactActions}
-        onBookmark={handleBookmarkPress}
-        onNotes={() => openNoteEditor(currentPage)}
-        onOpenLists={() => setListsVisible(true)}
-        onOpenComfort={() => setComfortVisible(true)}
-        onGoToPage={openGoToPage}
-        onFinish={openFinishModal}
-      />
+      {!focusMode ? (
+        <ReaderActionBar
+          isBookmarked={isPageBookmarked(currentPage)}
+          hasPageNote={hasPageNote}
+          compact={readerPrefs.compactActions}
+          onBookmark={handleBookmarkPress}
+          onNotes={() => openNoteEditor(currentPage)}
+          onOpenLists={() => setListsVisible(true)}
+          onOpenComfort={() => setComfortVisible(true)}
+          onGoToPage={openGoToPage}
+          onFinish={openFinishModal}
+          onEnterFocus={enterFocusMode}
+        />
+      ) : null}
 
       <ReaderComfortModal
         visible={comfortVisible}

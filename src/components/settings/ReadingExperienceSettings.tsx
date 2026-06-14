@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, Switch, View } from 'react-native';
 
 import { ReaderBrightnessControls } from '@/components/reader/ReaderBrightnessControls';
+import { ReaderFitModeSettings } from '@/components/settings/ReaderFitModeSettings';
+import { ReaderScrollModeSettings } from '@/components/settings/ReaderScrollModeSettings';
 import { Card } from '@/components/ui/Card';
 import { ThemedText } from '@/components/ui/ThemedText';
 import { useReaderPreferences } from '@/features/reader/useReaderPreferences';
@@ -48,23 +50,12 @@ function SettingSwitch({
 
 export function ReadingExperienceSettings() {
   const { t } = useTranslation();
-  const colors = useThemeColors();
   const { preferences, loading, saving, updatePreferences } = useReaderPreferences();
   const [brightnessAvailable, setBrightnessAvailable] = useState(false);
 
   useEffect(() => {
     void ReaderBrightnessService.isAvailable().then(setBrightnessAvailable);
   }, []);
-
-  const comingLaterItems = useMemo(
-    () => [
-      t('focus.title'),
-      t('readerPrefs.fitMode'),
-      t('readerPrefs.scrollMode'),
-      t('readerPrefs.defaultFocusMode'),
-    ],
-    [t],
-  );
 
   if (!preferences) {
     return null;
@@ -100,6 +91,18 @@ export function ReadingExperienceSettings() {
         </ThemedText>
       ) : null}
 
+      <ReaderFitModeSettings
+        value={preferences.fitMode}
+        disabled={disabled}
+        onChange={(fitMode) => void updatePreferences({ fitMode })}
+      />
+
+      <ReaderScrollModeSettings
+        value={preferences.scrollMode}
+        disabled={disabled}
+        onChange={(scrollMode) => void updatePreferences({ scrollMode })}
+      />
+
       <SettingSwitch
         label={t('readerPrefs.showTimer')}
         description={t('readerPrefs.showTimerDesc')}
@@ -124,17 +127,17 @@ export function ReadingExperienceSettings() {
         disabled={disabled}
       />
 
-      <View style={[styles.comingLater, { borderTopColor: colors.border }]}>
-        <ThemedText variant="label" secondary>
-          {t('readerPrefs.comingLater')}
-        </ThemedText>
-        <ThemedText variant="caption" secondary>
-          {comingLaterItems.join(' · ')}
-        </ThemedText>
-        <ThemedText variant="caption" secondary>
-          {t('readerPrefs.stabilityNote')}
-        </ThemedText>
-      </View>
+      <SettingSwitch
+        label={t('readerPrefs.defaultFocusMode')}
+        description={t('focus.description')}
+        value={preferences.defaultFocusMode}
+        onChange={(defaultFocusMode) => void updatePreferences({ defaultFocusMode })}
+        disabled={disabled}
+      />
+
+      <ThemedText variant="caption" secondary>
+        {t('readerPrefs.stabilityNote')}
+      </ThemedText>
     </Card>
   );
 }
@@ -151,10 +154,4 @@ const styles = StyleSheet.create({
   },
   rowText: { flex: 1, gap: 2 },
   rowLabel: { fontWeight: '600', fontSize: 15 },
-  comingLater: {
-    gap: Spacing.xs,
-    paddingTop: Spacing.sm,
-    marginTop: Spacing.xs,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
 });

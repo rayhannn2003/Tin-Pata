@@ -9,12 +9,16 @@ import {
 /** Constraints enforced when `reader_stability_mode` is `safe`. */
 export const SAFE_READER_CONSTRAINTS = {
   stabilityMode: 'safe' as const,
-  verticalScrollOnly: true,
+  /** Scroll mode is chosen at reader open; not toggled on mounted PDF. */
+  dynamicScrollMode: false,
   enablePaging: STABLE_READER_PDF_BEHAVIOR.enablePaging,
   fitPolicy: STABLE_READER_PDF_BEHAVIOR.fitPolicy,
-  focusOverlay: false,
+  /** Safe focus hides toolbar/action bar only — no scroll-blocking overlay on PDF. */
+  focusOverlayBlocksScroll: false,
   dynamicFitMode: false,
-  dynamicScrollMode: false,
+  /** Fit/scroll props are frozen per reader session at open — never changed on mounted PDF. */
+  sessionFrozenFitPolicy: true,
+  sessionFrozenEnablePaging: true,
   postLoadAutoSetPage: false,
   autoResumeViaInitialPageProp: true,
 } as const;

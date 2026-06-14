@@ -3,6 +3,7 @@ import { ReaderStabilityService } from '@/services/ReaderStabilityService';
 import {
   DEFAULT_READER_PREFERENCES,
   READER_SETTING_KEYS,
+  fitModeToFitPolicy,
   type ReaderFitMode,
   type ReaderPreferences,
   type ReaderScrollMode,
@@ -18,7 +19,7 @@ function parseBool(value: string | null, fallback: boolean): boolean {
   return fallback;
 }
 
-function parseFitMode(value: string | null): ReaderFitMode {
+export function parseFitMode(value: string | null): ReaderFitMode {
   if (value === 'width' || value === 'page' || value === 'auto') {
     return value;
   }
@@ -43,24 +44,14 @@ function parseBrightnessValue(value: string | null): number {
   return Math.min(1, Math.max(0, parsed));
 }
 
-export function fitModeToPolicy(fitMode: ReaderFitMode): 0 | 1 | 2 {
-  switch (fitMode) {
-    case 'width':
-      return 0;
-    case 'page':
-      return 1;
-    case 'auto':
-    default:
-      return 2;
-  }
+export function fitModeToPolicy(fitMode: ReaderFitMode): ReturnType<typeof fitModeToFitPolicy> {
+  return fitModeToFitPolicy(fitMode);
 }
 
-export function scrollModeToPaging(scrollMode: ReaderScrollMode): boolean {
-  return scrollMode === 'horizontal';
-}
+export { scrollModeToEnablePaging as scrollModeToPaging } from '@/types/reader';
 
 export const ReaderPreferencesService = {
-  /** Fit/scroll/default-focus prefs are stored but not applied while stability mode is `safe`. */
+  /** Fit/scroll prefs apply once at reader open — never changed on a mounted PDF. */
   async getPreferences(): Promise<ReaderPreferences> {
     await ReaderStabilityService.ensureSafeMode();
 

@@ -1,6 +1,6 @@
 # Reader Stability Test Checklist
 
-Tin Pata v1.1.4 — manual regression tests for the PDF reader.
+Tin Pata v1.3.0 — manual regression tests for the PDF reader.
 
 **Prerequisites**
 
@@ -11,31 +11,37 @@ Tin Pata v1.1.4 — manual regression tests for the PDF reader.
 
 ---
 
-## v1.1.4A — Stability cleanup (priority)
+## v1.3.0 — Safe reader modes (priority)
 
 | # | Test | Pass? | Notes |
 |---|------|-------|-------|
-| 1 | Open same book **20 times** | ☐ | No crash; resume stable |
-| 2 | Open from **Continue Reading** | ☐ | Auto-resume via initial `page` prop |
-| 3 | Open from **Library** | ☐ | |
-| 4 | Open from **Book Detail** | ☐ | |
-| 5 | Close/reopen repeatedly (10×) | ☐ | No duplicate sessions |
-| 6 | Scroll PDF for **2 minutes** | ☐ | No crash |
-| 7 | Finish session | ☐ | Session saved correctly |
-| 8 | Auto-save on exit | ☐ | Progress persisted |
-| 9 | Confirm **no duplicate sessions** | ☐ | One active session per open |
-| 10 | Confirm **no crash** on any path above | ☐ | |
+| 1 | **Vertical scroll mode** (default) | ☐ | Continuous vertical scroll; `enablePaging` false |
+| 2 | **Horizontal scroll mode** | ☐ | Page-by-page swipe; set in Settings, reopen reader |
+| 3 | Change scroll mode while reader open | ☐ | No change until reader closed and reopened |
+| 4 | **Fit modes** (Auto / Width / Page) | ☐ | Each applies on next reader open only |
+| 5 | **Focus Mode** in vertical scroll | ☐ | Toolbar/action bar hidden; PDF scrollable; back exits focus |
+| 6 | **Focus Mode** in horizontal scroll | ☐ | Same UI behavior; paging still works if safe |
+| 7 | Open same PDF **10 times** | ☐ | No crash in either scroll mode |
+| 8 | **Continue Reading** | ☐ | Auto-resume via initial `page` prop |
+| 9 | Auto-resume succeeds or fallback works | ☐ | Banner / manual jump if stuck on page 1 |
+| 10 | **Manual Go to Page** | ☐ | User-triggered `setPage` only |
+| 11 | **Bookmark jump** | ☐ | User-triggered only |
+| 12 | Session timer works | ☐ | |
+| 13 | Auto-save on exit works | ☐ | Progress persisted |
+| 14 | Black flash on open | ☐ | May occur briefly — known limitation, not a fail |
 
 ---
 
-## Resume UX (v1.1.4A copy)
+## v1.1.4A — Stability cleanup (carry-over)
 
 | # | Test | Pass? | Notes |
 |---|------|-------|-------|
-| 11 | Saved page > 1 while loading | ☐ | “Opening your last page…” (no center spinner overlay) |
-| 12 | Auto-resume succeeds | ☐ | Brief “Resumed from page X” |
-| 13 | Auto-resume fails (stays on page 1) | ☐ | Manual fallback banner after ~1.5s |
-| 14 | Black flash on open | ☐ | May occur briefly — known limitation, not a fail |
+| 15 | Open from **Library** | ☐ | |
+| 16 | Open from **Book Detail** | ☐ | |
+| 17 | Close/reopen repeatedly (10×) | ☐ | No duplicate sessions |
+| 18 | Scroll/read PDF for **2 minutes** | ☐ | No crash |
+| 19 | Finish session | ☐ | Session saved correctly |
+| 20 | Confirm **no duplicate sessions** | ☐ | One active session per open |
 
 ---
 
@@ -43,54 +49,46 @@ Tin Pata v1.1.4 — manual regression tests for the PDF reader.
 
 | # | Test | Pass? | Notes |
 |---|------|-------|-------|
-| 15 | Reading Experience shows comfort toggles | ☐ | Keep awake, brightness, timer, progress, compact bar |
-| 16 | “Coming later” note visible | ☐ | Focus, fit, scroll, default focus — not as usable controls |
-| 17 | No disabled switch rows for risky prefs | ☐ | |
+| 21 | Reading Experience shows fit + scroll pickers | ☐ | Chip selectors with “applies next open” helper |
+| 22 | Horizontal scroll warning visible | ☐ | EN and BN |
+| 23 | Default focus mode toggle | ☐ | |
+| 24 | Comfort toggles (timer, progress, compact bar) | ☐ | |
 
 ---
 
-## v1.1.4B — Safe reader comfort
+## v1.1.4B — Safe reader comfort (carry-over)
 
 | # | Test | Pass? | Notes |
 |---|------|-------|-------|
-| 31 | Reader brightness applies in reader | ☐ | Enable in Settings; open book; screen dims/brightens |
-| 32 | Brightness restores after leaving reader | ☐ | Exit reader; system brightness returns |
-| 33 | Brightness API failure is calm | ☐ | No crash; info banner if permission/API fails |
-| 34 | Keep screen awake on reader only | ☐ | Screen stays on while reading; off after exit |
-| 35 | Timer hidden but session continues | ☐ | Hide timer; finish session still records time |
-| 36 | Progress hidden but page tracking continues | ☐ | Hide progress; `current_page` still updates |
-| 37 | Compact action bar works | ☐ | Icons only in bottom bar |
-| 38 | Reader comfort panel opens from action bar | ☐ | Brightness + UI toggles; no fit/scroll/focus |
-| 39 | Language switching works | ☐ | EN ↔ BN for new comfort strings |
-| 40 | Brightness prefs in JSON backup | ☐ | Export/import includes brightness enabled + value |
-| 41 | `npm run typecheck` passes | ☐ | |
+| 25 | Reader brightness applies in reader | ☐ | |
+| 26 | Brightness restores after leaving reader | ☐ | |
+| 27 | Keep screen awake on reader only | ☐ | |
+| 28 | Language switching works | ☐ | EN ↔ BN for reader prefs |
+| 29 | Reader prefs in JSON backup | ☐ | fit, scroll, focus, brightness |
 
 ---
 
-## Safe auto-resume (carry-over from v1.1.3)
+## Safe auto-resume (carry-over)
 
 | # | Test | Pass? | Notes |
 |---|------|-------|-------|
-| 18 | Open PDF with `current_page = 1` | ☐ | No resume banner |
-| 19 | Read to page 10, exit, reopen | ☐ | Opens on page 10 |
-| 20 | No app exit during resume | ☐ | |
-| 21 | **Go to Page** modal works | ☐ | User-triggered `setPage` only |
-| 22 | Bookmark/list jump works | ☐ | User-triggered only |
-| 23 | Page tracking updates `current_page` | ☐ | Via `onPageChanged` |
-| 24 | No `PdfFile.getMaxPageWidth()` NPE | ☐ | |
+| 30 | Open PDF with `current_page = 1` | ☐ | No resume banner |
+| 31 | Read to page 10, exit, reopen | ☐ | Opens on page 10 |
+| 32 | No app exit during resume | ☐ | |
+| 33 | Page tracking updates `current_page` | ☐ | Via `onPageChanged` |
+| 34 | No `PdfFile.getMaxPageWidth()` NPE | ☐ | |
 
 ---
 
-## Regression
+## Regression & release
 
 | # | Test | Pass? | Notes |
 |---|------|-------|-------|
-| 25 | Hardware Back saves and exits | ☐ | |
-| 26 | Book detail cards do not overlap | ☐ | |
-| 27 | Focus mode hidden in reader | ☐ | Safe stability mode |
-| 28 | `npm run typecheck` passes | ☐ | |
-| 29 | `npx expo-doctor` passes | ☐ | No committed `android/`/`ios/` |
-| 30 | Production APK build works | ☐ | `eas build --profile production` |
+| 35 | Hardware Back saves and exits | ☐ | Focus mode exits first, then reader |
+| 36 | Book detail cards do not overlap | ☐ | |
+| 37 | `npm run typecheck` passes | ☐ | |
+| 38 | `npx expo-doctor` passes | ☐ | No committed `android/`/`ios/` |
+| 39 | Production APK build works | ☐ | `eas build --profile production` |
 
 ---
 
@@ -108,10 +106,11 @@ If the initial `page` prop causes repeated black flash or native crash:
 
 - **Device:**
 - **Build:** debug / release
-- **Version:** 1.1.4
+- **Version:** 1.3.0
 - **Date:**
 - **Tester:**
 - **Result:** Pass / Fail
 - **Auto-resume mechanism:** initial `page` prop / fallback only
 - **Stability mode:** safe
+- **Scroll mode tested:** vertical / horizontal
 - **Issues found:**

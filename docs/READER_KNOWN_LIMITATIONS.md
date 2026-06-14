@@ -1,6 +1,6 @@
 # Reader Known Limitations
 
-Tin Pata v1.1.4 — PDF reader constraints and stability notes.
+Tin Pata v1.3.0 — PDF reader constraints and stability notes.
 
 ## Black flash on resume
 
@@ -10,8 +10,8 @@ What we do to minimize risk:
 
 - Auto-resume uses the native **`page` prop only at first mount** (frozen ref).
 - **No post-load automatic `setPage()`** for resume.
-- **No dynamic `key`** on the PDF component.
-- **No changing** fit mode, scroll mode, or focus overlays in safe mode.
+- **No dynamic `key`** on the PDF component (only `key={pdfUri}`).
+- **Fit mode, scroll mode, and enablePaging** are frozen at reader open — never changed on a mounted PDF.
 
 If native crashes return (`PdfFile.getMaxPageWidth()` NPE, app exit on open), restore **manual resume only** (v1.1.2 style): remove the initial `page` prop and rely on the “Last read” fallback banner.
 
@@ -28,21 +28,22 @@ After open, we detect success via `onPageChanged`. If the viewer stays on page 1
 
 ## Stability mode (`reader_stability_mode = safe`)
 
-Only **`safe`** is supported in v1.1.x. In safe mode:
+Only **`safe`** is supported. In safe mode:
 
-- Vertical continuous scroll only
-- No focus overlay
-- No dynamic fit or scroll direction
+- Fit and scroll preferences apply **once at reader open** (session-frozen refs)
+- Vertical scroll = `enablePaging: false` (continuous)
+- Horizontal scroll = `enablePaging: true` (page-by-page swipe)
+- Focus mode hides UI controls only — no overlay on the PDF
 - No post-load auto `setPage`
 - Auto-resume via initial `page` prop only
 
-Do not re-enable risky reader experiments without a new stability mode and device testing.
+Do not re-enable risky reader experiments (dynamic fit/scroll/focus props) without a new stability mode and device testing.
 
 ## What not to change casually
 
 - Do not pass a **new object identity** to `source={{ uri }}` on every render without `useMemo`.
 - Do not wrap the PDF in **conditional render** that unmounts/remounts it.
-- Do not update the **`page` prop** reactively after mount.
+- Do not update the **`page`**, **`fitPolicy`**, or **`enablePaging`** props reactively after mount.
 - Do not add focus/fit/scroll toggles that alter native PDF props at runtime.
 
 See also: [KNOWN_LIMITATIONS.md](./KNOWN_LIMITATIONS.md), [READER_STABILITY_TEST_CHECKLIST.md](./READER_STABILITY_TEST_CHECKLIST.md), [CNG_SETUP.md](./CNG_SETUP.md).

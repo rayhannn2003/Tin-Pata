@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { BookService } from '@/services/BookService';
+import { ReaderPreferencesService } from '@/services/ReaderPreferencesService';
 import {
   PAGE_SAVE_DEBOUNCE_MS,
   PDF_LOAD_TIMEOUT_MS,
@@ -10,6 +11,7 @@ import {
 import type { PdfRef } from '@/components/reader/types';
 import { isPdfNativeModuleLinked } from '@/components/reader/pdfNativeModule';
 import type { Book } from '@/types';
+import { STABLE_READER_PDF_BEHAVIOR, fitModeToFitPolicy, scrollModeToEnablePaging } from '@/types/reader';
 
 import { useBook } from '@/features/books/useBook';
 
@@ -34,6 +36,8 @@ interface UsePdfReaderResult {
   state: ReaderScreenState;
   book: Book | null;
   pdfUri: string | null;
+  sessionFitPolicy: 0 | 1 | 2;
+  sessionEnablePaging: boolean;
   initialResumePage: number;
   savedPage: number;
   currentPage: number;
@@ -65,6 +69,12 @@ export function usePdfReader(bookId: string | undefined): UsePdfReaderResult {
   const [state, setState] = useState<ReaderScreenState>('loading_book');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [pdfUri, setPdfUri] = useState<string | null>(null);
+  const [sessionFitPolicy, setSessionFitPolicy] = useState<0 | 1 | 2>(
+    STABLE_READER_PDF_BEHAVIOR.fitPolicy,
+  );
+  const [sessionEnablePaging, setSessionEnablePaging] = useState(
+    STABLE_READER_PDF_BEHAVIOR.enablePaging,
+  );
   const [initialResumePage, setInitialResumePage] = useState(1);
   const [savedPage, setSavedPage] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
@@ -276,49 +286,73 @@ export function usePdfReader(bookId: string | undefined): UsePdfReaderResult {
       return;
     }
 
-    try {
-      const verified = PdfReaderService.verifyBookForReading(book, bookId);
-      const knownTotal =
-        verified.totalPages > 0 ? verified.totalPages : verified.currentPage;
-      const storedPage = PdfReaderService.clampPage(
-        PdfReaderService.initialPageForBook(verified),
-        knownTotal > 0 ? knownTotal : verified.currentPage,
-      );
-      const uri = PdfReaderService.resolveReaderUri(verified);
+    let cancelled = false;
 
-      preparedBookIdRef.current = bookId;
-      hasPdfErrorRef.current = false;
-      lastJumpedPageRef.current = 0;
-      autoResumeSucceededRef.current = false;
-      autoResumeTargetRef.current = storedPage;
-      initialResumePageRef.current = storedPage;
-      clearFallbackCheckTimer();
-      clearResumedDismissTimer();
+    void (async () => {
+      try {
+        const prefs = await ReaderPreferencesService.getPreferences();
+        if (cancelled) {
+          return;
+        }
 
-      setPdfUri(uri);
-      setInitialResumePage(storedPage);
-      setSavedPage(storedPage);
-      setCurrentPage(storedPage > 1 ? storedPage : 1);
-      currentPageRef.current = storedPage > 1 ? storedPage : 1;
-      setTotalPages(verified.totalPages > 0 ? verified.totalPages : 0);
-      totalPagesRef.current = verified.totalPages > 0 ? verified.totalPages : 0;
-      lastSavedPageRef.current = verified.currentPage;
-      totalPagesPersistedRef.current = verified.totalPages > 0;
-      setPdfLoading(true);
-      setIsPdfLoaded(false);
-      setShowLoadingJumpHint(false);
-      setErrorMessage(null);
-      setAutoResumeStatus(storedPage > 1 ? 'opening' : 'none');
-      setState('ready');
-      scheduleLoadTimeout();
-    } catch (error) {
-      setState('error');
-      setErrorMessage(
-        error instanceof PdfReaderError
-          ? error.message
-          : 'Could not prepare the reader.',
-      );
-    }
+        const verified = PdfReaderService.verifyBookForReading(book, bookId);
+        const knownTotal =
+          verified.totalPages > 0 ? verified.totalPages : verified.currentPage;
+        const storedPage = PdfReaderService.clampPage(
+          PdfReaderService.initialPageForBook(verified),
+          knownTotal > 0 ? knownTotal : verified.currentPage,
+        );
+        const uri = PdfReaderService.resolveReaderUri(verified);
+        const fitPolicy = fitModeToFitPolicy(prefs.fitMode);
+        const enablePaging = scrollModeToEnablePaging(prefs.scrollMode);
+
+        if (cancelled) {
+          return;
+        }
+
+        preparedBookIdRef.current = bookId;
+        hasPdfErrorRef.current = false;
+        lastJumpedPageRef.current = 0;
+        autoResumeSucceededRef.current = false;
+        autoResumeTargetRef.current = storedPage;
+        initialResumePageRef.current = storedPage;
+        clearFallbackCheckTimer();
+        clearResumedDismissTimer();
+
+        setSessionFitPolicy(fitPolicy);
+        setSessionEnablePaging(enablePaging);
+        setPdfUri(uri);
+        setInitialResumePage(storedPage);
+        setSavedPage(storedPage);
+        setCurrentPage(storedPage > 1 ? storedPage : 1);
+        currentPageRef.current = storedPage > 1 ? storedPage : 1;
+        setTotalPages(verified.totalPages > 0 ? verified.totalPages : 0);
+        totalPagesRef.current = verified.totalPages > 0 ? verified.totalPages : 0;
+        lastSavedPageRef.current = verified.currentPage;
+        totalPagesPersistedRef.current = verified.totalPages > 0;
+        setPdfLoading(true);
+        setIsPdfLoaded(false);
+        setShowLoadingJumpHint(false);
+        setErrorMessage(null);
+        setAutoResumeStatus(storedPage > 1 ? 'opening' : 'none');
+        setState('ready');
+        scheduleLoadTimeout();
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+        setState('error');
+        setErrorMessage(
+          error instanceof PdfReaderError
+            ? error.message
+            : 'Could not prepare the reader.',
+        );
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [
     book,
     bookId,
@@ -484,6 +518,8 @@ export function usePdfReader(bookId: string | undefined): UsePdfReaderResult {
     state,
     book,
     pdfUri,
+    sessionFitPolicy,
+    sessionEnablePaging,
     initialResumePage,
     savedPage,
     currentPage,

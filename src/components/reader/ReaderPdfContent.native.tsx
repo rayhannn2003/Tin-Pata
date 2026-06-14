@@ -8,6 +8,8 @@ interface ReaderPdfContentProps {
   pdfRef: RefObject<PdfRef | null>;
   uri: string;
   initialPage: number;
+  fitPolicy: 0 | 1 | 2;
+  enablePaging: boolean;
   onLoadComplete: (pageCount: number) => void;
   onPageChanged: (page: number, pageCount: number) => void;
   onError: (error: unknown) => void;
@@ -20,6 +22,8 @@ function readerPdfPropsAreEqual(
   return (
     prev.uri === next.uri &&
     prev.initialPage === next.initialPage &&
+    prev.fitPolicy === next.fitPolicy &&
+    prev.enablePaging === next.enablePaging &&
     prev.pdfRef === next.pdfRef &&
     prev.onLoadComplete === next.onLoadComplete &&
     prev.onPageChanged === next.onPageChanged &&
@@ -31,6 +35,8 @@ export const ReaderPdfContent = memo(function ReaderPdfContent({
   pdfRef,
   uri,
   initialPage,
+  fitPolicy,
+  enablePaging,
   onLoadComplete,
   onPageChanged,
   onError,
@@ -41,6 +47,8 @@ export const ReaderPdfContent = memo(function ReaderPdfContent({
         ref={pdfRef}
         uri={uri}
         initialPage={initialPage}
+        fitPolicy={fitPolicy}
+        enablePaging={enablePaging}
         onLoadComplete={onLoadComplete}
         onPageChanged={onPageChanged}
         onError={onError}

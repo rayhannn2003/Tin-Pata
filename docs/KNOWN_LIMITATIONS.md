@@ -1,6 +1,6 @@
 # Known Limitations
 
-Tin Pata **v1.2.0** — personal-use, offline-first Android app.
+Tin Pata **v1.3.0** — personal-use, offline-first Android app.
 
 ---
 
@@ -20,10 +20,10 @@ Tin Pata **v1.2.0** — personal-use, offline-first Android app.
 | Limitation | Detail |
 |------------|--------|
 | **Black flash on resume** | Opening at a saved page may briefly flash black (`react-native-pdf` native behavior). |
-| **Focus mode disabled** | Not available in v1.2.0 — coming in a future release. |
-| **Fit mode disabled** | PDF layout is fixed in safe stability mode (vertical scroll, auto fit). |
-| **Scroll direction disabled** | Horizontal page swipe / paging mode not exposed in v1.2.0. |
-| **No PDF text search** | Not planned for v1.2. |
+| **Fit/scroll apply at open only** | Fit mode and scroll mode are read once when the reader opens and frozen for that session. Changing settings while reading applies on the **next** open. |
+| **Horizontal scroll varies by PDF** | Horizontal (page-by-page) mode uses native paging; some PDFs may layout or swipe differently. |
+| **Focus mode is UI-only** | Focus mode hides app controls (toolbar, action bar) but does not modify the PDF renderer. |
+| **No PDF text search** | Not planned for v1.3. |
 | **Large PDFs** | Very large files may load slowly; progress depends on native renderer. |
 
 Details: [READER_KNOWN_LIMITATIONS.md](./READER_KNOWN_LIMITATIONS.md)
@@ -51,7 +51,7 @@ Details: [READER_KNOWN_LIMITATIONS.md](./READER_KNOWN_LIMITATIONS.md)
 
 ---
 
-## Stats & insights (v1.2)
+## Stats & insights (v1.2+)
 
 | Limitation | Detail |
 |------------|--------|
@@ -76,4 +76,4 @@ If the initial `page` prop causes crashes again:
 
 - [READER_KNOWN_LIMITATIONS.md](./READER_KNOWN_LIMITATIONS.md) — PDF stability constraints
 - [READER_STABILITY_TEST_CHECKLIST.md](./READER_STABILITY_TEST_CHECKLIST.md) — Reader QA
-- [V1_2_RELEASE_CHECKLIST.md](./V1_2_RELEASE_CHECKLIST.md) — Full v1.2.0 sign-off
+- [VERSION_HISTORY.md](./VERSION_HISTORY.md) — Release notes
