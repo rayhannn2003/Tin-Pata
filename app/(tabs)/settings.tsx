@@ -53,10 +53,18 @@ export default function SettingsScreen() {
     Alert.alert(t('settings.resetTitle'), t('settings.resetMessage'), [
       { text: t('common.cancel'), style: 'cancel' },
       {
-        text: t('settings.resetConfirm'),
-        style: 'destructive',
+        text: t('common.continue'),
         onPress: () => {
-          void SettingsService.resetAllData();
+          Alert.alert(t('settings.resetFinalTitle'), t('settings.resetFinalMessage'), [
+            { text: t('common.cancel'), style: 'cancel' },
+            {
+              text: t('settings.resetConfirm'),
+              style: 'destructive',
+              onPress: () => {
+                void SettingsService.resetAllData();
+              },
+            },
+          ]);
         },
       },
     ]);
@@ -164,6 +172,9 @@ export default function SettingsScreen() {
           <Card style={styles.dangerCard}>
             <ThemedText variant="caption" secondary>
               {t('settings.resetHint')}
+            </ThemedText>
+            <ThemedText variant="caption" secondary>
+              {t('settings.resetBackupHint')}
             </ThemedText>
             <Button label={t('settings.resetAll')} onPress={handleResetData} variant="danger" />
           </Card>

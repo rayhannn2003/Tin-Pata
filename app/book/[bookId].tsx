@@ -2,7 +2,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -44,6 +43,7 @@ import {
 import type { BookStatus } from '@/types';
 import { categoryLabelKey } from '@/utils/libraryOrganize';
 import { formatLastReadDate } from '@/utils/format';
+import { confirmBookDelete } from '@/utils/confirmBookDelete';
 import { openReaderAtPage } from '@/utils/readerNavigation';
 
 export default function BookDetailScreen() {
@@ -154,19 +154,10 @@ export default function BookDetailScreen() {
     if (!book) {
       return;
     }
-    Alert.alert(t('library.deleteTitle'), t('library.deleteMessage', { title: book.title }), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('common.delete'),
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            await BookService.deleteBook(book.id);
-            router.replace('/library');
-          })();
-        },
-      },
-    ]);
+    confirmBookDelete(book.id, book.title, t, async () => {
+      await BookService.deleteBook(book.id);
+      router.replace('/library');
+    });
   };
 
   const handleRename = async (title: string) => {

@@ -37,6 +37,7 @@ import {
   type LibrarySortOption,
   type LibraryStatusFilter,
 } from '@/types/bookOrganization';
+import { confirmBookDelete } from '@/utils/confirmBookDelete';
 import {
   categoryLabelKey,
   hasActiveLibraryFilters,
@@ -122,16 +123,7 @@ export default function LibraryScreen() {
         : t('library.bookCountSorted', { count: totalCount, sort: sortLabel });
 
   const handleDelete = (bookId: string, title: string) => {
-    Alert.alert(t('library.deleteTitle'), t('library.deleteMessage', { title }), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('common.delete'),
-        style: 'destructive',
-        onPress: () => {
-          void deleteBook(bookId);
-        },
-      },
-    ]);
+    confirmBookDelete(bookId, title, t, () => deleteBook(bookId));
   };
 
   const handleBookMenu = (book: LibraryBook) => {

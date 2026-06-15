@@ -143,9 +143,14 @@ export function ImportPreviewModal({
                 {mode === 'merge' ? t('backup.mergeModeDesc') : t('backup.replaceModeDesc')}
               </ThemedText>
               {mode === 'replace' ? (
-                <ThemedText variant="caption" style={{ color: colors.danger }}>
-                  {t('backup.replaceOverwriteWarning')}
-                </ThemedText>
+                <>
+                  <ThemedText variant="caption" style={{ color: colors.danger }}>
+                    {t('backup.replaceOverwriteWarning')}
+                  </ThemedText>
+                  <ThemedText variant="caption" secondary>
+                    {t('danger.cannotUndo')}
+                  </ThemedText>
+                </>
               ) : null}
             </View>
           </ScrollView>

@@ -1,6 +1,8 @@
 # Backup and Restore
 
-Tin Pata **v1.4B** — local JSON backup for reading data. No cloud sync.
+Tin Pata **v1.4.0** — local JSON backup for reading data. No cloud sync.
+
+**v1.4.0 safeguards:** merge/replace import with preview, double confirmation for replace restore, backup health card, missing PDF detection, PDF relink, and two-step confirmations for reset and book delete.
 
 ---
 
@@ -154,7 +156,8 @@ Future optional PDF cloud restore is documented separately in [CLOUDINARY_BACKUP
 
 ## Safety warnings
 
-- Always export before **Replace current data**
+- Always export before **Replace current data** or **Reset all data**
+- Replace and reset require **two-step confirmation** in v1.4.0
 - Test merge on a copy first if unsure
 - Backups from a **newer app version** may contain fields this build ignores
 - Backups from an **older app version** use safe defaults for missing fields
@@ -166,3 +169,4 @@ Future optional PDF cloud restore is documented separately in [CLOUDINARY_BACKUP
 
 - [KNOWN_LIMITATIONS.md](./KNOWN_LIMITATIONS.md) — app-wide limits
 - [VERSION_HISTORY.md](./VERSION_HISTORY.md) — release notes
+- [V1_4_RELEASE_CHECKLIST.md](./V1_4_RELEASE_CHECKLIST.md) — v1.4.0 QA sign-off

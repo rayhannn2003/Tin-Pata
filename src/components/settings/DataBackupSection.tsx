@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Alert, Platform, StyleSheet, View } from 'react-native';
 
+import { BackupHealthCard } from '@/components/settings/BackupHealthCard';
 import { ImportPreviewModal } from '@/components/settings/ImportPreviewModal';
 import { ImportResultModal } from '@/components/settings/ImportResultModal';
 import { Button } from '@/components/ui/Button';
@@ -9,6 +10,7 @@ import { ThemedText } from '@/components/ui/ThemedText';
 import { useTranslation } from '@/i18n/useTranslation';
 import { Spacing } from '@/constants/layout';
 import { BackupService } from '@/services/BackupService';
+import { BackupHealthService, type BackupHealthSnapshot } from '@/services/BackupHealthService';
 import { LanguageService } from '@/services/LanguageService';
 import { useThemeColors } from '@/hooks/useColorScheme';
 import {
@@ -43,11 +45,23 @@ export function DataBackupSection() {
   const [validationWarnings, setValidationWarnings] = useState<BackupErrorCode[]>([]);
   const [importMode, setImportMode] = useState<ImportMode>('merge');
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [health, setHealth] = useState<BackupHealthSnapshot | null>(null);
+  const [healthLoading, setHealthLoading] = useState(true);
+
+  const refreshHealth = useCallback(async () => {
+    try {
+      const snapshot = await BackupHealthService.getHealthSnapshot();
+      setHealth(snapshot);
+    } finally {
+      setHealthLoading(false);
+    }
+  }, []);
 
   const refreshLastBackup = useCallback(async () => {
     const stored = await BackupService.getLastBackupAt();
     setLastBackupAt(stored);
-  }, []);
+    await refreshHealth();
+  }, [refreshHealth]);
 
   useEffect(() => {
     void refreshLastBackup();
@@ -100,6 +114,7 @@ export function DataBackupSection() {
       setResultVisible(true);
       setPendingPayload(null);
       setPreview(null);
+      await refreshHealth();
     } catch (err) {
       if (err instanceof BackupError) {
         setError(backupErrorMessage(err.code, t));
@@ -110,7 +125,22 @@ export function DataBackupSection() {
     } finally {
       setImporting(false);
     }
-  }, [importMode, pendingPayload, setLanguage, t]);
+  }, [importMode, pendingPayload, refreshHealth, setLanguage, t]);
+
+  const handleConfirmImport = useCallback(() => {
+    if (importMode === 'replace') {
+      Alert.alert(t('backup.replaceConfirmTitle'), t('backup.replaceConfirmMessage'), [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('backup.replaceConfirmButton'),
+          style: 'destructive',
+          onPress: () => void runImport(),
+        },
+      ]);
+      return;
+    }
+    void runImport();
+  }, [importMode, runImport, t]);
 
   const handleImport = useCallback(() => {
     void (async () => {
@@ -137,6 +167,8 @@ export function DataBackupSection() {
 
   return (
     <>
+      <BackupHealthCard health={health} loading={healthLoading} />
+
       <Card style={styles.card}>
         <ThemedText variant="caption" secondary>
           {t('settings.backupExplain')}
@@ -195,7 +227,7 @@ export function DataBackupSection() {
         importing={importing}
         onModeChange={setImportMode}
         onClose={closePreview}
-        onConfirm={() => void runImport()}
+        onConfirm={handleConfirmImport}
       />
 
       <ImportResultModal
@@ -204,6 +236,7 @@ export function DataBackupSection() {
         onClose={() => {
           setResultVisible(false);
           setImportResult(null);
+          void refreshHealth();
         }}
       />
     </>
@@ -211,6 +244,6 @@ export function DataBackupSection() {
 }
 
 const styles = StyleSheet.create({
-  card: { gap: Spacing.md },
+  card: { gap: Spacing.md, marginTop: Spacing.sm },
   actions: { gap: Spacing.sm },
 });

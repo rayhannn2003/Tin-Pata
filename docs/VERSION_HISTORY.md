@@ -2,7 +2,27 @@
 
 Tin Pata (তিনপাতা) — release notes for personal-use builds.
 
-**Current stable:** **v1.3.0** (June 2026)
+**Current stable:** **v1.4.0** (June 2026)
+
+---
+
+## v1.4.0 — Backup and Data Safety
+
+Local backup and data protection release. No cloud sync.
+
+**Highlights**
+
+- **Backup schema versioning** — `appName`, `backupVersion`, `appVersion`, `exportedAt`, platform metadata
+- **Safe import validation** — JSON structure checks, legacy compatibility, sanitized records
+- **Import preview** — counts, version warnings, PDF-not-included notice before restore
+- **Merge / replace restore** — user chooses mode; replace requires double confirmation
+- **Import result summary** — imported/skipped counts, books needing PDF relink
+- **Missing PDF detection** — runtime checks; calm library indicator
+- **PDF relink flow** — restore progress, notes, bookmarks after choosing a PDF file
+- **Destructive action safeguards** — reset, replace import, book delete use two-step confirmation
+- **Backup health card** — last backup date, book/PDF/annotation counts in Settings
+
+**Internal milestones:** v1.4A backup audit · v1.4B missing PDF relink · v1.4C release QA
 
 ---
 

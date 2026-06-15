@@ -70,7 +70,11 @@ export const translations: Record<AppLanguage, TranslationTree> = {
       noMatchMessage: 'Try a different search or filter.',
       deleteTitle: 'Delete PDF?',
       deleteMessage:
-        'Remove "{{title}}" from your library? This deletes the local file and all related data.',
+        'Remove "{{title}}" from your library? This deletes the local PDF file and all related data.',
+      deleteMessageWithData:
+        'Remove "{{title}}"? This will delete {{sessions}} sessions, {{notes}} notes, and {{bookmarks}} bookmarks.',
+      deleteFinalTitle: 'Delete this book permanently?',
+      deleteFinalMessage: 'This cannot be undone. The PDF file and all reading data for this book will be removed.',
       rename: 'Rename',
       markFinished: 'Mark as finished',
       markReading: 'Mark as reading',
@@ -316,6 +320,10 @@ export const translations: Record<AppLanguage, TranslationTree> = {
       resetTitle: 'Reset all data?',
       resetMessage:
         'This will delete all books, PDFs, sessions, notes, bookmarks, and reflections from this device.',
+      resetFinalTitle: 'Reset all data permanently?',
+      resetFinalMessage:
+        'This cannot be undone. Your local reading data will be replaced with nothing. Export a backup first if you want to keep your data.',
+      resetBackupHint: 'Export a backup first if you want to keep your reading data.',
       resetConfirm: 'Reset everything',
       exportData: 'Export backup (JSON)',
       importData: 'Import backup (JSON)',
@@ -530,6 +538,15 @@ export const translations: Record<AppLanguage, TranslationTree> = {
       backupNoPdfs: 'This backup does not include PDF files.',
       relinkAfterRestore:
         'After restore, you may need to relink PDFs. Relinking keeps your progress, notes, and bookmarks.',
+      healthTitle: 'Backup status',
+      healthBooks: '{{count}} books on device',
+      healthMissingPdfs: '{{count}} books need PDF relink',
+      healthAnnotations: '{{notes}} notes · {{bookmarks}} bookmarks',
+      healthReminder: 'Create a backup before reinstalling or changing phones.',
+      replaceConfirmTitle: 'Replace all local data?',
+      replaceConfirmMessage:
+        'This cannot be undone. Your local reading data will be replaced with the backup. PDF files are not included in JSON backup.',
+      replaceConfirmButton: 'Replace everything',
       errors: {
         invalid_json: 'Invalid backup file.',
         invalid_structure: 'Invalid backup file.',
@@ -569,6 +586,9 @@ export const translations: Record<AppLanguage, TranslationTree> = {
       relinkSuccess: 'PDF relinked successfully.',
       relinkFailed: 'Could not relink PDF.',
       pageAdjusted: 'Saved page was adjusted because the new PDF has fewer pages.',
+    },
+    danger: {
+      cannotUndo: 'This cannot be undone.',
     },
   },
   bn: {
@@ -637,6 +657,10 @@ export const translations: Record<AppLanguage, TranslationTree> = {
       deleteTitle: 'PDF মুছবেন?',
       deleteMessage:
         '"{{title}}" মুছে ফেললে স্থানীয় ফাইল ও সম্পর্কিত সব তথ্য চলে যাবে।',
+      deleteMessageWithData:
+        '"{{title}}" মুছবেন? {{sessions}}টি সেশন, {{notes}}টি নোট ও {{bookmarks}}টি বুকমার্ক মুছে যাবে।',
+      deleteFinalTitle: 'এই বই স্থায়ীভাবে মুছবেন?',
+      deleteFinalMessage: 'এটি ফেরানো যাবে না। PDF ফাইল ও এই বইয়ের সব পড়ার তথ্য মুছে যাবে।',
       rename: 'নাম বদলান',
       markFinished: 'শেষ হয়েছে হিসেবে চিহ্নিত',
       markReading: 'পড়ছি হিসেবে চিহ্নিত',
@@ -880,6 +904,10 @@ export const translations: Record<AppLanguage, TranslationTree> = {
       resetAll: 'সব ডেটা মুছুন',
       resetTitle: 'সব ডেটা মুছবেন?',
       resetMessage: 'এতে বই, PDF, সেশন, নোট, বুকমার্ক ও ভাবনা মুছে যাবে।',
+      resetFinalTitle: 'সব ডেটা স্থায়ীভাবে মুছবেন?',
+      resetFinalMessage:
+        'এটি ফেরানো যাবে না। স্থানীয় পড়ার তথ্য সম্পূর্ণ মুছে যাবে। রাখতে চাইলে আগে ব্যাকআপ রপ্তানি করুন।',
+      resetBackupHint: 'পড়ার তথ্য রাখতে চাইলে আগে ব্যাকআপ রপ্তানি করুন।',
       resetConfirm: 'সব মুছুন',
       exportData: 'ব্যাকআপ রপ্তানি (JSON)',
       importData: 'ব্যাকআপ আমদানি (JSON)',
@@ -1094,6 +1122,15 @@ export const translations: Record<AppLanguage, TranslationTree> = {
       backupNoPdfs: 'এই ব্যাকআপে PDF ফাইল থাকে না।',
       relinkAfterRestore:
         'পুনরুদ্ধারের পর PDF আবার যুক্ত করতে হতে পারে। যুক্ত করলে অগ্রগতি, নোট ও বুকমার্ক থাকবে।',
+      healthTitle: 'ব্যাকআপ অবস্থা',
+      healthBooks: 'ডিভাইসে {{count}}টি বই',
+      healthMissingPdfs: '{{count}}টি বইয়ের PDF আবার যুক্ত করতে হবে',
+      healthAnnotations: '{{notes}}টি নোট · {{bookmarks}}টি বুকমার্ক',
+      healthReminder: 'অ্যাপ পুনরায় ইনস্টল বা ফোন বদলের আগে ব্যাকআপ রাখুন।',
+      replaceConfirmTitle: 'সব স্থানীয় তথ্য প্রতিস্থাপন করবেন?',
+      replaceConfirmMessage:
+        'এটি ফেরানো যাবে না। স্থানীয় পড়ার তথ্য ব্যাকআপ দিয়ে প্রতিস্থাপিত হবে। JSON ব্যাকআপে PDF ফাইল থাকে না।',
+      replaceConfirmButton: 'সব প্রতিস্থাপন করুন',
       resultMissingPdfs: '{{count}}টি বইয়ের PDF এই ডিভাইসে নেই',
       errors: {
         invalid_json: 'অবৈধ ব্যাকআপ ফাইল।',
@@ -1134,6 +1171,9 @@ export const translations: Record<AppLanguage, TranslationTree> = {
       relinkSuccess: 'PDF সফলভাবে যুক্ত হয়েছে।',
       relinkFailed: 'PDF যুক্ত করা যায়নি।',
       pageAdjusted: 'নতুন PDF-এ পৃষ্ঠা কম থাকায় সংরক্ষিত পৃষ্ঠা সামঞ্জস্য করা হয়েছে।',
+    },
+    danger: {
+      cannotUndo: 'এটি ফেরানো যাবে না।',
     },
   },
 };
