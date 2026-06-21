@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -20,7 +21,11 @@ function hasBookTitle(note: Note | NoteWithBook): note is NoteWithBook {
   return 'bookTitle' in note && typeof note.bookTitle === 'string';
 }
 
-export function NoteListItem({ note, showBookTitle = true, onPress }: NoteListItemProps) {
+export const NoteListItem = memo(function NoteListItem({
+  note,
+  showBookTitle = true,
+  onPress,
+}: NoteListItemProps) {
   const colors = useThemeColors();
   const { t } = useTranslation();
   const dateLabel = formatImportDate(note.updatedAt || note.createdAt);
@@ -50,7 +55,7 @@ export function NoteListItem({ note, showBookTitle = true, onPress }: NoteListIt
       </Pressable>
     </Card>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: { padding: 0 },

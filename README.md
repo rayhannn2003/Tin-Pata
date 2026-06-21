@@ -61,42 +61,29 @@ Full guide: [docs/BACKUP_AND_RESTORE.md](docs/BACKUP_AND_RESTORE.md)
 
 ---
 
-## Commands
+## Development & release
 
-**Expo Go is not supported.** The PDF reader requires a **development or production build**.
+**Expo Go is not supported.** Native modules (PDF, notifications) require a **dev client**.
 
-This project uses **CNG / Prebuild** — `android/` and `ios/` are generated locally and are **not committed**. See [docs/CNG_SETUP.md](docs/CNG_SETUP.md).
+**CNG / Prebuild:** `android/` and `ios/` are generated from `app.json` — **not committed**. See [CNG_SETUP.md](docs/CNG_SETUP.md).
 
-```bash
-# Install dependencies
-npm install
+| Task | Command |
+|------|---------|
+| Install | `npm install` |
+| Typecheck | `npm run typecheck` |
+| Health check | `npx expo-doctor` |
+| Metro (daily JS work) | `npx expo start -c` |
+| USB Metro | `adb reverse tcp:8081 tcp:8081` |
+| Regenerate native project | `npx expo prebuild --clean --platform android` |
+| Dev client build + install | `npx expo run:android` |
+| Production APK | `eas build --platform android --profile production` |
+| Test APK | `eas build --platform android --profile preview` |
 
-# TypeScript check
-npm run typecheck
+**Before risky changes** (reset data, replace import, major upgrade): export JSON backup in Settings. PDFs are not in the backup — relink after restore.
 
-# Generate native Android project (after clone or plugin changes)
-npx expo prebuild --clean --platform android
+Full DevOps guide: [docs/DEVOPS_AND_RELEASE_ENGINEERING.md](docs/DEVOPS_AND_RELEASE_ENGINEERING.md) · Release: [RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md) · Rollback: [ROLLBACK_AND_RECOVERY.md](docs/ROLLBACK_AND_RECOVERY.md) · Secrets: [ENVIRONMENT_AND_SECRETS.md](docs/ENVIRONMENT_AND_SECRETS.md)
 
-# Build and install dev client on device/emulator
-npx expo run:android
-
-# Day-to-day JS development (after dev build installed)
-npx expo start -c
-# USB: adb reverse tcp:8081 tcp:8081
-
-# Project health
-npx expo-doctor
-```
-
-### Production APK
-
-```bash
-eas build --platform android --profile production
-```
-
-Package: `com.readinghabit.tracker` · App name: **তিনপাতা (Tin Pata)**
-
-After changing app icon, native plugins (`expo-brightness`, PDF, notifications), or `app.json`, run prebuild + `run:android` again.
+After changing `app.json` plugins, icon, splash, or permissions → prebuild + `run:android` again (Metro alone is not enough).
 
 ---
 
@@ -114,6 +101,16 @@ See [docs/BRAND_ASSETS.md](docs/BRAND_ASSETS.md) for paths and sizes.
 |----------|-------------|
 | [Version History](docs/VERSION_HISTORY.md) | Release notes (v1.0–v1.4) |
 | [Engineering Architecture](docs/ENGINEERING_ARCHITECTURE.md) | System design, data flows, v2 bridge |
+| [Database Audit](docs/DB_AUDIT.md) | SQLite schema audit (v1.5B) |
+| [Backup Audit](docs/BACKUP_AUDIT.md) | Import/export audit (v1.5B) |
+| [v2 Data Readiness](docs/V2_DATA_READINESS_CHECKLIST.md) | Pre-sync checklist |
+| [Frontend Performance Audit](docs/FRONTEND_PERFORMANCE_AUDIT.md) | Rendering, lists, reader (v1.5C) |
+| [v2 Frontend Readiness](docs/V2_FRONTEND_READINESS_CHECKLIST.md) | Pre-cloud UI checklist |
+| [DevOps & Release Engineering](docs/DEVOPS_AND_RELEASE_ENGINEERING.md) | Build model, CNG, Metro vs native (v1.5D) |
+| [Release Process](docs/RELEASE_PROCESS.md) | Versioning, checklist, EAS profiles |
+| [Rollback & Recovery](docs/ROLLBACK_AND_RECOVERY.md) | Git, data, build recovery |
+| [Environment & Secrets](docs/ENVIRONMENT_AND_SECRETS.md) | v1/v2 secrets policy |
+| [v2 DevOps Readiness](docs/V2_DEVOPS_READINESS_CHECKLIST.md) | Pre-cloud infra checklist |
 | [v1.4 Release Checklist](docs/V1_4_RELEASE_CHECKLIST.md) | Final QA sign-off (v1.4.0) |
 | [Backup & Restore](docs/BACKUP_AND_RESTORE.md) | Export, import, relink, safety |
 | [Known Limitations](docs/KNOWN_LIMITATIONS.md) | Platform, reader, backup constraints |

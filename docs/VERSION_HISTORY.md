@@ -12,6 +12,24 @@ Documentation-only milestone: [ENGINEERING_ARCHITECTURE.md](./ENGINEERING_ARCHIT
 
 ---
 
+## v1.5B — Database and backup audit
+
+Documentation-only audit: [DB_AUDIT.md](./DB_AUDIT.md), [BACKUP_AUDIT.md](./BACKUP_AUDIT.md), [V2_DATA_READINESS_CHECKLIST.md](./V2_DATA_READINESS_CHECKLIST.md). No schema or backup format changes.
+
+---
+
+## v1.5C — Frontend performance audit
+
+Audit + small optimizations: [FRONTEND_PERFORMANCE_AUDIT.md](./FRONTEND_PERFORMANCE_AUDIT.md), [V2_FRONTEND_READINESS_CHECKLIST.md](./V2_FRONTEND_READINESS_CHECKLIST.md). Debounced annotation search, memoized list rows, cached PDF availability in library.
+
+---
+
+## v1.5D — DevOps and release engineering
+
+Documentation-only: [DEVOPS_AND_RELEASE_ENGINEERING.md](./DEVOPS_AND_RELEASE_ENGINEERING.md), [RELEASE_PROCESS.md](./RELEASE_PROCESS.md), [ROLLBACK_AND_RECOVERY.md](./ROLLBACK_AND_RECOVERY.md), [ENVIRONMENT_AND_SECRETS.md](./ENVIRONMENT_AND_SECRETS.md), [V2_DEVOPS_READINESS_CHECKLIST.md](./V2_DEVOPS_READINESS_CHECKLIST.md). Added `.env` to `.gitignore`.
+
+---
+
 ## v1.4.0 — Backup and Data Safety
 
 Local backup and data protection release. No cloud sync.

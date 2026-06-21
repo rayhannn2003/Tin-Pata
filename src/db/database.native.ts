@@ -161,6 +161,7 @@ export async function initializeDatabase(): Promise<void> {
   return state.initPromise;
 }
 
+/** Applies MIGRATIONS in version order; each version runs at most once. */
 async function runMigrations(db: SQLiteDatabase): Promise<void> {
   await db.execAsync(`
     CREATE TABLE IF NOT EXISTS schema_migrations (

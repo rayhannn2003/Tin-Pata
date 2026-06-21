@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { memo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { BookVisual } from '@/components/library/BookVisual';
@@ -21,6 +22,8 @@ import { PdfReaderService } from '@/services/PdfReaderService';
 
 interface BookListItemProps {
   book: Book & BookAnnotationCounts;
+  /** Pass from parent when list already computed availability — avoids sync file I/O per render. */
+  pdfMissing?: boolean;
   onPress: () => void;
   onContinue: () => void;
   onRelink?: () => void;
@@ -41,8 +44,9 @@ function statusKey(status: BookStatus): string {
   }
 }
 
-export function BookListItem({
+export const BookListItem = memo(function BookListItem({
   book,
+  pdfMissing: pdfMissingProp,
   onPress,
   onContinue,
   onRelink,
@@ -51,7 +55,8 @@ export function BookListItem({
 }: BookListItemProps) {
   const colors = useThemeColors();
   const { t } = useTranslation();
-  const pdfMissing = !PdfAvailabilityService.isPdfAvailable(book);
+  const pdfMissing =
+    pdfMissingProp ?? !PdfAvailabilityService.isPdfAvailable(book);
 
   const pageLabel = formatPageProgress(book.currentPage, book.totalPages);
   const progressPercent = formatReadingProgressPercent(book.currentPage, book.totalPages);
@@ -162,7 +167,7 @@ export function BookListItem({
       </View>
     </Card>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: { gap: Spacing.sm },

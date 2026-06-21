@@ -122,6 +122,7 @@ function stripCloudFields(book: Book): BackupPayload['books'][number] {
   };
 }
 
+/** Wipes SQLite rows only — PDF files under documentDirectory/pdfs/ are not deleted. */
 async function clearAllDataInTransaction(db: SQLiteDatabase): Promise<void> {
   await db.execAsync(`
     DELETE FROM reflections;

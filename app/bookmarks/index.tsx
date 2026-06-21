@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   ActivityIndicator,
@@ -7,6 +7,7 @@ import {
   StyleSheet,
   TextInput,
   View,
+  type ListRenderItemInfo,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,6 +21,7 @@ import { useTranslation } from '@/i18n/useTranslation';
 import { Spacing } from '@/constants/layout';
 import { useThemeColors } from '@/hooks/useColorScheme';
 import { openReaderAtPage } from '@/utils/readerNavigation';
+import type { BookmarkWithBook } from '@/types';
 
 export default function BookmarksScreen() {
   const router = useRouter();
@@ -36,6 +38,26 @@ export default function BookmarksScreen() {
     }
     return t('annotations.bookmarks');
   }, [book, bookId, t]);
+
+  const handleBookmarkPress = useCallback(
+    (noteBookId: string, pageNumber: number) => {
+      void openReaderAtPage(router, noteBookId, pageNumber, t);
+    },
+    [router, t],
+  );
+
+  const renderBookmark = useCallback(
+    ({ item }: ListRenderItemInfo<BookmarkWithBook>) => (
+      <BookmarkListItem
+        bookmark={item}
+        showBookTitle={!bookId}
+        onPress={() => handleBookmarkPress(item.bookId, item.pageNumber)}
+      />
+    ),
+    [bookId, handleBookmarkPress],
+  );
+
+  const keyExtractor = useCallback((item: BookmarkWithBook) => item.id, []);
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: colors.background }]} edges={['top']}>
@@ -81,18 +103,10 @@ export default function BookmarksScreen() {
         ) : (
           <FlatList
             data={bookmarks}
-            keyExtractor={(item) => item.id}
+            keyExtractor={keyExtractor}
+            renderItem={renderBookmark}
             contentContainerStyle={styles.list}
             showsVerticalScrollIndicator={false}
-            renderItem={({ item }) => (
-              <BookmarkListItem
-                bookmark={item}
-                showBookTitle={!bookId}
-                onPress={() => {
-                  void openReaderAtPage(router, item.bookId, item.pageNumber, t);
-                }}
-              />
-            )}
           />
         )}
       </View>

@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -19,7 +20,7 @@ function hasBookTitle(bookmark: Bookmark | BookmarkWithBook): bookmark is Bookma
   return 'bookTitle' in bookmark && typeof bookmark.bookTitle === 'string';
 }
 
-export function BookmarkListItem({
+export const BookmarkListItem = memo(function BookmarkListItem({
   bookmark,
   showBookTitle = true,
   onPress,
@@ -55,7 +56,7 @@ export function BookmarkListItem({
       </Pressable>
     </Card>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: { padding: 0 },

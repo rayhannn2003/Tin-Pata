@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'expo-router';
 import {
   ActivityIndicator,
@@ -107,6 +107,29 @@ export default function LibraryScreen() {
   const filteredBooks = useMemo(
     () => organizeLibraryBooks(books, organizeFilters, sortOption),
     [books, organizeFilters, sortOption],
+  );
+
+  /** One filesystem check per book when library data changes — not on every row render. */
+  const pdfMissingByBookId = useMemo(() => {
+    const map = new Map<string, boolean>();
+    for (const book of books) {
+      map.set(book.id, !PdfAvailabilityService.isPdfAvailable(book));
+    }
+    return map;
+  }, [books]);
+
+  const handleBookPress = useCallback(
+    (id: string) => {
+      router.push({ pathname: '/book/[bookId]', params: { bookId: id } });
+    },
+    [router],
+  );
+
+  const handleBookContinue = useCallback(
+    (id: string) => {
+      void openReaderForBook(router, id, t);
+    },
+    [router, t],
   );
 
   const extraFilterCount =
@@ -393,13 +416,10 @@ export default function LibraryScreen() {
               <BookListItem
                 key={book.id}
                 book={book}
-                onPress={() =>
-                  router.push({ pathname: '/book/[bookId]', params: { bookId: book.id } })
-                }
-                onContinue={() => void openReaderForBook(router, book.id, t)}
-                onRelink={() =>
-                  router.push({ pathname: '/book/[bookId]', params: { bookId: book.id } })
-                }
+                pdfMissing={pdfMissingByBookId.get(book.id) ?? false}
+                onPress={() => handleBookPress(book.id)}
+                onContinue={() => handleBookContinue(book.id)}
+                onRelink={() => handleBookPress(book.id)}
                 onMenu={() => handleBookMenu(book)}
                 deleting={deletingId === book.id}
               />

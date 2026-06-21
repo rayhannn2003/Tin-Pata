@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   ActivityIndicator,
@@ -7,6 +7,7 @@ import {
   StyleSheet,
   TextInput,
   View,
+  type ListRenderItemInfo,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,6 +21,7 @@ import { useTranslation } from '@/i18n/useTranslation';
 import { Spacing } from '@/constants/layout';
 import { useThemeColors } from '@/hooks/useColorScheme';
 import { openReaderAtPage } from '@/utils/readerNavigation';
+import type { NoteWithBook } from '@/types';
 
 export default function NotesScreen() {
   const router = useRouter();
@@ -36,6 +38,26 @@ export default function NotesScreen() {
     }
     return t('annotations.notes');
   }, [book, bookId, t]);
+
+  const handleNotePress = useCallback(
+    (noteBookId: string, pageNumber: number) => {
+      void openReaderAtPage(router, noteBookId, pageNumber, t);
+    },
+    [router, t],
+  );
+
+  const renderNote = useCallback(
+    ({ item }: ListRenderItemInfo<NoteWithBook>) => (
+      <NoteListItem
+        note={item}
+        showBookTitle={!bookId}
+        onPress={() => handleNotePress(item.bookId, item.pageNumber)}
+      />
+    ),
+    [bookId, handleNotePress],
+  );
+
+  const keyExtractor = useCallback((item: NoteWithBook) => item.id, []);
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: colors.background }]} edges={['top']}>
@@ -81,18 +103,10 @@ export default function NotesScreen() {
         ) : (
           <FlatList
             data={notes}
-            keyExtractor={(item) => item.id}
+            keyExtractor={keyExtractor}
+            renderItem={renderNote}
             contentContainerStyle={styles.list}
             showsVerticalScrollIndicator={false}
-            renderItem={({ item }) => (
-              <NoteListItem
-                note={item}
-                showBookTitle={!bookId}
-                onPress={() => {
-                  void openReaderAtPage(router, item.bookId, item.pageNumber, t);
-                }}
-              />
-            )}
           />
         )}
       </View>

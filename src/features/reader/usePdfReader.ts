@@ -321,6 +321,7 @@ export function usePdfReader(bookId: string | undefined): UsePdfReaderResult {
         clearFallbackCheckTimer();
         clearResumedDismissTimer();
 
+        // Fit/scroll apply once per book open — do not update after `ready` (native PDF remount).
         setSessionFitPolicy(fitPolicy);
         setSessionEnablePaging(enablePaging);
         setPdfUri(uri);

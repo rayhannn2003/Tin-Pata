@@ -1,4 +1,4 @@
-/** v1.2A — book category and reading priority for library organization. */
+/** v1.2A — category/priority defaults only; validation is app-layer (see parseBookCategory). */
 export const MIGRATION_V4 = `
 ALTER TABLE books ADD COLUMN category TEXT NOT NULL DEFAULT 'general';
 ALTER TABLE books ADD COLUMN priority TEXT NOT NULL DEFAULT 'normal';
