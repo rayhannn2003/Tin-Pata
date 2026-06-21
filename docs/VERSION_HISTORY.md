@@ -6,6 +6,12 @@ Tin Pata (তিনপাতা) — release notes for personal-use builds.
 
 ---
 
+## v1.5A — Engineering architecture documentation
+
+Documentation-only milestone: [ENGINEERING_ARCHITECTURE.md](./ENGINEERING_ARCHITECTURE.md) — system design, module map, data flows, fragile areas, and v2 cloud sync bridge.
+
+---
+
 ## v1.4.0 — Backup and Data Safety
 
 Local backup and data protection release. No cloud sync.

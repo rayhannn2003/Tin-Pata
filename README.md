@@ -113,6 +113,7 @@ See [docs/BRAND_ASSETS.md](docs/BRAND_ASSETS.md) for paths and sizes.
 | Document | Description |
 |----------|-------------|
 | [Version History](docs/VERSION_HISTORY.md) | Release notes (v1.0–v1.4) |
+| [Engineering Architecture](docs/ENGINEERING_ARCHITECTURE.md) | System design, data flows, v2 bridge |
 | [v1.4 Release Checklist](docs/V1_4_RELEASE_CHECKLIST.md) | Final QA sign-off (v1.4.0) |
 | [Backup & Restore](docs/BACKUP_AND_RESTORE.md) | Export, import, relink, safety |
 | [Known Limitations](docs/KNOWN_LIMITATIONS.md) | Platform, reader, backup constraints |
