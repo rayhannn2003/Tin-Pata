@@ -66,6 +66,11 @@ export const translations: Record<AppLanguage, TranslationTree> = {
       networkError: 'Could not reach the server. Check your connection.',
       signInFailed: 'Sign in failed. Try again.',
       signUpFailed: 'Sign up failed. Try again.',
+      emailConfirmationRequired:
+        'Supabase is still sending confirmation emails. In Supabase Dashboard go to Authentication → Providers → Email and turn OFF "Confirm email", then sign up again.',
+      emailNotConfirmed:
+        'This account is not confirmed yet. Turn OFF "Confirm email" in Supabase, or delete the test user and sign up again.',
+      emailAlreadyRegistered: 'This email is already registered. Try Sign in instead.',
       weakPassword: 'Password is too weak. Use at least 6 characters.',
       displayName: 'Display name',
       displayNamePlaceholder: 'Your name (optional)',
@@ -765,6 +770,11 @@ export const translations: Record<AppLanguage, TranslationTree> = {
       networkError: 'সার্ভারে যোগাযোগ করা যায়নি। ইন্টারনেট দেখুন।',
       signInFailed: 'সাইন ইন ব্যর্থ। আবার চেষ্টা করুন।',
       signUpFailed: 'সাইন আপ ব্যর্থ। আবার চেষ্টা করুন।',
+      emailConfirmationRequired:
+        'Supabase এখনো নিশ্চিতকরণ ইমেইল পাঠাচ্ছে। Supabase Dashboard → Authentication → Providers → Email → "Confirm email" বন্ধ করুন, তারপর আবার সাইন আপ করুন।',
+      emailNotConfirmed:
+        'এই অ্যাকাউন্ট এখনো নিশ্চিত নয়। Supabase-এ "Confirm email" বন্ধ করুন, অথবা টেস্ট ইউজার মুছে আবার সাইন আপ করুন।',
+      emailAlreadyRegistered: 'এই ইমেইল ইতিমধ্যে নিবন্ধিত। সাইন ইন চেষ্টা করুন।',
       weakPassword: 'পাসওয়ার্ড দুর্বল। কমপক্ষে ৬ অক্ষর ব্যবহার করুন।',
       displayName: 'প্রদর্শন নাম',
       displayNamePlaceholder: 'আপনার নাম (ঐচ্ছিক)',

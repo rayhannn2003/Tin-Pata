@@ -8,12 +8,28 @@ import {
   type AuthUser,
 } from '@/types/auth';
 
+const MIN_PASSWORD_LENGTH = 6;
+
 function requireClient() {
   const client = getSupabaseClient();
   if (!client) {
     throw new AuthError('not_configured', 'Supabase is not configured.');
   }
   return client;
+}
+
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+function validateCredentials(email: string, password: string): void {
+  const trimmedEmail = normalizeEmail(email);
+  if (!trimmedEmail || !trimmedEmail.includes('@')) {
+    throw new AuthError('invalid_credentials', 'Enter a valid email address.');
+  }
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    throw new AuthError('weak_password');
+  }
 }
 
 function mapAuthError(error: { message?: string; status?: number }): AuthError {
@@ -24,6 +40,13 @@ function mapAuthError(error: { message?: string; status?: number }): AuthError {
   }
   if (message.includes('email not confirmed')) {
     return new AuthError('email_not_confirmed');
+  }
+  if (
+    message.includes('already registered') ||
+    message.includes('already exists') ||
+    message.includes('user already registered')
+  ) {
+    return new AuthError('email_already_registered');
   }
   if (message.includes('password') && message.includes('least')) {
     return new AuthError('weak_password');
@@ -80,8 +103,9 @@ export const AuthService = {
     email: string,
     password: string,
   ): Promise<{ user: AuthUser | null; session: Session | null }> {
+    validateCredentials(email, password);
     const client = requireClient();
-    const trimmedEmail = email.trim().toLowerCase();
+    const trimmedEmail = normalizeEmail(email);
 
     const { data, error } = await client.auth.signUp({
       email: trimmedEmail,
@@ -99,25 +123,18 @@ export const AuthService = {
       };
     }
 
-    // No email confirmation: sign in immediately after sign-up.
-    const signedIn = await client.auth.signInWithPassword({
-      email: trimmedEmail,
-      password,
-    });
-
-    if (signedIn.error) {
-      throw mapAuthError(signedIn.error);
+    // Supabase still has "Confirm email" enabled — no session is returned.
+    if (data.user) {
+      throw new AuthError('email_confirmation_required');
     }
 
-    return {
-      user: mapSupabaseUser(signedIn.data.user),
-      session: signedIn.data.session,
-    };
+    throw new AuthError('unknown', 'Sign up did not return a user.');
   },
 
   async signInWithEmail(email: string, password: string): Promise<AuthSessionState> {
+    validateCredentials(email, password);
     const client = requireClient();
-    const trimmedEmail = email.trim().toLowerCase();
+    const trimmedEmail = normalizeEmail(email);
 
     const { data, error } = await client.auth.signInWithPassword({
       email: trimmedEmail,
@@ -158,3 +175,32 @@ export const AuthService = {
     return { unsubscribe: () => data.subscription.unsubscribe() };
   },
 };
+
+export function getAuthErrorMessage(
+  error: unknown,
+  t: (key: string) => string,
+  fallbackKey: 'auth.signUpFailed' | 'auth.signInFailed' = 'auth.signUpFailed',
+): string {
+  if (!(error instanceof AuthError)) {
+    return t(fallbackKey);
+  }
+
+  switch (error.code) {
+    case 'invalid_credentials':
+      return t('auth.invalidCredentials');
+    case 'email_not_confirmed':
+      return t('auth.emailNotConfirmed');
+    case 'email_confirmation_required':
+      return t('auth.emailConfirmationRequired');
+    case 'email_already_registered':
+      return t('auth.emailAlreadyRegistered');
+    case 'weak_password':
+      return t('auth.weakPassword');
+    case 'network_error':
+      return t('auth.networkError');
+    case 'not_configured':
+      return t('auth.notConfigured');
+    default:
+      return error.message?.trim() || t(fallbackKey);
+  }
+}

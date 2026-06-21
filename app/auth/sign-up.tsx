@@ -16,8 +16,7 @@ import { useAuth } from '@/features/auth/AuthProvider';
 import { useTranslation } from '@/i18n/useTranslation';
 import { Spacing } from '@/constants/layout';
 import { useThemeColors } from '@/hooks/useColorScheme';
-import { AuthError } from '@/types/auth';
-import { AuthService } from '@/services/AuthService';
+import { AuthService, getAuthErrorMessage } from '@/services/AuthService';
 
 export default function SignUpScreen() {
   const router = useRouter();
@@ -43,15 +42,7 @@ export default function SignUpScreen() {
       await signUp(email, password);
       router.back();
     } catch (err) {
-      if (err instanceof AuthError && err.code === 'invalid_credentials') {
-        setError(t('auth.invalidCredentials'));
-      } else if (err instanceof AuthError && err.code === 'weak_password') {
-        setError(t('auth.weakPassword'));
-      } else if (err instanceof AuthError && err.code === 'network_error') {
-        setError(t('auth.networkError'));
-      } else {
-        setError(t('auth.signUpFailed'));
-      }
+      setError(getAuthErrorMessage(err, t));
     } finally {
       setLoading(false);
     }

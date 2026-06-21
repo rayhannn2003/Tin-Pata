@@ -25,6 +25,8 @@ export type AuthErrorCode =
   | 'not_configured'
   | 'invalid_credentials'
   | 'email_not_confirmed'
+  | 'email_confirmation_required'
+  | 'email_already_registered'
   | 'weak_password'
   | 'network_error'
   | 'unknown';

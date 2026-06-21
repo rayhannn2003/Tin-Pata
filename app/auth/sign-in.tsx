@@ -16,8 +16,7 @@ import { useAuth } from '@/features/auth/AuthProvider';
 import { useTranslation } from '@/i18n/useTranslation';
 import { Spacing } from '@/constants/layout';
 import { useThemeColors } from '@/hooks/useColorScheme';
-import { AuthError } from '@/types/auth';
-import { AuthService } from '@/services/AuthService';
+import { AuthService, getAuthErrorMessage } from '@/services/AuthService';
 
 export default function SignInScreen() {
   const router = useRouter();
@@ -43,13 +42,7 @@ export default function SignInScreen() {
       await signIn(email, password);
       router.back();
     } catch (err) {
-      if (err instanceof AuthError && err.code === 'invalid_credentials') {
-        setError(t('auth.invalidCredentials'));
-      } else if (err instanceof AuthError && err.code === 'network_error') {
-        setError(t('auth.networkError'));
-      } else {
-        setError(t('auth.signInFailed'));
-      }
+      setError(getAuthErrorMessage(err, t, 'auth.signInFailed'));
     } finally {
       setLoading(false);
     }
