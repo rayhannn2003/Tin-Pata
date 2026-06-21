@@ -28,7 +28,12 @@ import {
   type ImportResult,
 } from '@/types/backup';
 import { PdfAvailabilityService } from '@/services/PdfAvailabilityService';
+import {
+  DEVICE_ID_SETTING_KEY,
+  DeviceIdentityService,
+} from '@/services/DeviceIdentityService';
 import type { Book, Bookmark, DailyGoal, Note, ReadingSession, Reflection } from '@/types';
+import { stampImportedLocalSync } from '@/utils/syncMetadata';
 
 const PORTABLE_SETTING_KEYS = new Set<string>([
   'app_language',
@@ -46,6 +51,9 @@ const PORTABLE_SETTING_KEYS = new Set<string>([
 ]);
 
 function shouldIncludeSetting(key: string): boolean {
+  if (key === DEVICE_ID_SETTING_KEY) {
+    return false;
+  }
   return PORTABLE_SETTING_KEYS.has(key);
 }
 
@@ -54,63 +62,33 @@ function formatBackupFileName(date = new Date()): string {
   return `tin-pata-backup-${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}-${pad(date.getHours())}-${pad(date.getMinutes())}.json`;
 }
 
-async function getAllBookmarks(): Promise<Bookmark[]> {
-  return withDatabase(async (db) => {
-    const rows = await db.getAllAsync<{
-      id: string;
-      book_id: string;
-      page_number: number;
-      title: string | null;
-      created_at: string;
-    }>('SELECT * FROM bookmarks ORDER BY created_at ASC');
-    return rows.map((row) => ({
-      id: row.id,
-      bookId: row.book_id,
-      pageNumber: row.page_number,
-      title: row.title,
-      createdAt: row.created_at,
-    }));
-  });
+async function stampImportedBook(book: Book, deviceId: string): Promise<Book> {
+  return stampImportedLocalSync(
+    {
+      ...book,
+      currentPageUpdatedAt: book.currentPageUpdatedAt ?? book.updatedAt,
+    },
+    deviceId,
+  );
 }
 
-async function getAllNotes(): Promise<Note[]> {
-  return withDatabase(async (db) => {
-    const rows = await db.getAllAsync<{
-      id: string;
-      book_id: string;
-      page_number: number;
-      note_text: string;
-      created_at: string;
-      updated_at: string;
-    }>('SELECT * FROM notes ORDER BY created_at ASC');
-    return rows.map((row) => ({
-      id: row.id,
-      bookId: row.book_id,
-      pageNumber: row.page_number,
-      noteText: row.note_text,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-    }));
-  });
-}
-
-async function getAllGoals(): Promise<DailyGoal[]> {
-  return withDatabase(async (db) => {
-    const rows = await db.getAllAsync<{
-      id: string;
-      goal_type: DailyGoal['goalType'];
-      target_value: number;
-      is_active: number;
-      created_at: string;
-    }>('SELECT * FROM daily_goals ORDER BY created_at ASC');
-    return rows.map((row) => ({
-      id: row.id,
-      goalType: row.goal_type,
-      targetValue: row.target_value,
-      isActive: row.is_active === 1,
-      createdAt: row.created_at,
-    }));
-  });
+async function prepareImportedEntities(payload: BackupPayload, deviceId: string) {
+  return {
+    books: await Promise.all(payload.books.map((book) => stampImportedBook(book, deviceId))),
+    sessions: payload.reading_sessions.map((session) =>
+      stampImportedLocalSync(session as ReadingSession, deviceId),
+    ),
+    bookmarks: payload.bookmarks.map((bookmark) =>
+      stampImportedLocalSync(bookmark as Bookmark, deviceId),
+    ),
+    notes: payload.notes.map((note) => stampImportedLocalSync(note as Note, deviceId)),
+    goals: payload.daily_goals.map((goal) =>
+      stampImportedLocalSync(goal as DailyGoal, deviceId),
+    ),
+    reflections: payload.reflections.map((reflection) =>
+      stampImportedLocalSync(reflection, deviceId),
+    ),
+  };
 }
 
 function stripCloudFields(book: Book): BackupPayload['books'][number] {
@@ -131,7 +109,7 @@ async function clearAllDataInTransaction(db: SQLiteDatabase): Promise<void> {
     DELETE FROM reading_sessions;
     DELETE FROM books;
     DELETE FROM daily_goals;
-    DELETE FROM settings;
+    DELETE FROM settings WHERE key != '${DEVICE_ID_SETTING_KEY}';
   `);
 }
 
@@ -184,9 +162,9 @@ export const BackupService = {
       await Promise.all([
         BookRepository.getAllBooks(),
         SessionRepository.getAllSessions(),
-        getAllBookmarks(),
-        getAllNotes(),
-        getAllGoals(),
+        BookmarkRepository.getAllBookmarks(),
+        NoteRepository.getAllNotes(),
+        GoalRepository.getAllGoals(),
         ReflectionRepository.getAll(),
         SettingsRepository.getAll(),
       ]);
@@ -314,6 +292,8 @@ export const BackupService = {
     const normalized = validation.payload;
     const result = createEmptyImportResult('replace');
     result.warnings = [...validation.warnings];
+    const deviceId = await DeviceIdentityService.getOrCreateDeviceId();
+    const imported = await prepareImportedEntities(normalized, deviceId);
 
     await cancelReaderNotificationsQuietly();
 
@@ -321,7 +301,7 @@ export const BackupService = {
       await db.withTransactionAsync(async () => {
         await clearAllDataInTransaction(db);
 
-        for (const book of normalized.books) {
+        for (const book of imported.books) {
           const { book: prepared, missingPdf } = resolveBookDownloadState(book);
           if (missingPdf) {
             result.missingPdfCount += 1;
@@ -330,41 +310,41 @@ export const BackupService = {
           result.booksImported += 1;
         }
 
-        const bookIds = new Set(normalized.books.map((book) => book.id));
+        const bookIds = new Set(imported.books.map((book) => book.id));
 
-        for (const session of normalized.reading_sessions) {
+        for (const session of imported.sessions) {
           if (!bookIds.has(session.bookId)) {
             result.sessionsSkipped += 1;
             continue;
           }
-          await SessionRepository.createSession(session as ReadingSession);
+          await SessionRepository.createSession(session);
           result.sessionsImported += 1;
         }
 
-        for (const bookmark of normalized.bookmarks) {
+        for (const bookmark of imported.bookmarks) {
           if (!bookIds.has(bookmark.bookId)) {
             result.bookmarksSkipped += 1;
             continue;
           }
-          await BookmarkRepository.createBookmark(bookmark as Bookmark);
+          await BookmarkRepository.createBookmark(bookmark);
           result.bookmarksImported += 1;
         }
 
-        for (const note of normalized.notes) {
+        for (const note of imported.notes) {
           if (!bookIds.has(note.bookId)) {
             result.notesSkipped += 1;
             continue;
           }
-          await NoteRepository.createNote(note as Note);
+          await NoteRepository.createNote(note);
           result.notesImported += 1;
         }
 
-        for (const goal of normalized.daily_goals) {
-          await GoalRepository.createGoal(goal as DailyGoal);
+        for (const goal of imported.goals) {
+          await GoalRepository.createGoal(goal);
           result.goalsImported += 1;
         }
 
-        for (const reflection of normalized.reflections) {
+        for (const reflection of imported.reflections) {
           await ReflectionRepository.createReflection(reflection);
           result.reflectionsImported += 1;
         }
@@ -404,6 +384,8 @@ export const BackupService = {
     const normalized = validation.payload;
     const result = createEmptyImportResult('merge');
     result.warnings = [...validation.warnings];
+    const deviceId = await DeviceIdentityService.getOrCreateDeviceId();
+    const imported = await prepareImportedEntities(normalized, deviceId);
 
     const [
       existingBookIds,
@@ -429,7 +411,7 @@ export const BackupService = {
 
     await withDatabase(async (db) => {
       await db.withTransactionAsync(async () => {
-        for (const book of normalized.books) {
+        for (const book of imported.books) {
           if (existingBookIds.has(book.id)) {
             result.booksSkipped += 1;
             continue;
@@ -443,7 +425,7 @@ export const BackupService = {
           result.booksImported += 1;
         }
 
-        for (const session of normalized.reading_sessions) {
+        for (const session of imported.sessions) {
           if (existingSessionIds.has(session.id)) {
             result.sessionsSkipped += 1;
             continue;
@@ -452,11 +434,11 @@ export const BackupService = {
             result.sessionsSkipped += 1;
             continue;
           }
-          await SessionRepository.createSession(session as ReadingSession);
+          await SessionRepository.createSession(session);
           result.sessionsImported += 1;
         }
 
-        for (const bookmark of normalized.bookmarks) {
+        for (const bookmark of imported.bookmarks) {
           if (existingBookmarkIds.has(bookmark.id)) {
             result.bookmarksSkipped += 1;
             continue;
@@ -465,11 +447,11 @@ export const BackupService = {
             result.bookmarksSkipped += 1;
             continue;
           }
-          await BookmarkRepository.createBookmark(bookmark as Bookmark);
+          await BookmarkRepository.createBookmark(bookmark);
           result.bookmarksImported += 1;
         }
 
-        for (const note of normalized.notes) {
+        for (const note of imported.notes) {
           if (existingNoteIds.has(note.id)) {
             result.notesSkipped += 1;
             continue;
@@ -478,20 +460,20 @@ export const BackupService = {
             result.notesSkipped += 1;
             continue;
           }
-          await NoteRepository.createNote(note as Note);
+          await NoteRepository.createNote(note);
           result.notesImported += 1;
         }
 
-        for (const goal of normalized.daily_goals) {
+        for (const goal of imported.goals) {
           if (existingGoalIds.has(goal.id)) {
             result.goalsSkipped += 1;
             continue;
           }
-          await GoalRepository.createGoal(goal as DailyGoal);
+          await GoalRepository.createGoal(goal);
           result.goalsImported += 1;
         }
 
-        for (const reflection of normalized.reflections) {
+        for (const reflection of imported.reflections) {
           if (existingReflectionIds.has(reflection.id)) {
             result.reflectionsSkipped += 1;
             continue;

@@ -1,10 +1,11 @@
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { StatusBar } from 'expo-status-bar';
 
 import { I18nProvider } from '@/i18n/I18nProvider';
+import { AuthProvider, useAuth } from '@/features/auth/AuthProvider';
 import { DatabaseProvider } from '@/hooks/useDatabase';
 import { ThemeProvider, useThemeContext } from '@/hooks/ThemeProvider';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -13,6 +14,23 @@ import { WebPreviewBanner } from '@/components/ui/WebPreviewBanner';
 export { ErrorBoundary } from 'expo-router';
 
 SplashScreen.preventAutoHideAsync();
+
+function SplashGate({ fontsLoaded, children }: { fontsLoaded: boolean; children: ReactNode }) {
+  const { loading: authLoading } = useAuth();
+  const { loading: themeLoading } = useThemeContext();
+
+  useEffect(() => {
+    if (fontsLoaded && !authLoading && !themeLoading) {
+      void SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded, authLoading, themeLoading]);
+
+  if (!fontsLoaded || authLoading || themeLoading) {
+    return null;
+  }
+
+  return children;
+}
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
@@ -25,12 +43,6 @@ export default function RootLayout() {
     }
   }, [error]);
 
-  useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [loaded]);
-
   if (!loaded) {
     return null;
   }
@@ -39,7 +51,11 @@ export default function RootLayout() {
     <DatabaseProvider>
       <ThemeProvider>
         <I18nProvider>
-          <RootStack />
+          <AuthProvider>
+            <SplashGate fontsLoaded={loaded}>
+              <RootStack />
+            </SplashGate>
+          </AuthProvider>
         </I18nProvider>
       </ThemeProvider>
     </DatabaseProvider>
@@ -48,11 +64,6 @@ export default function RootLayout() {
 
 function RootStack() {
   const colorScheme = useColorScheme();
-  const { loading: themeLoading } = useThemeContext();
-
-  if (themeLoading) {
-    return null;
-  }
 
   return (
     <>
@@ -84,6 +95,13 @@ function RootStack() {
         />
         <Stack.Screen
           name="bookmarks/index"
+          options={{
+            headerShown: false,
+            presentation: 'card',
+          }}
+        />
+        <Stack.Screen
+          name="auth"
           options={{
             headerShown: false,
             presentation: 'card',

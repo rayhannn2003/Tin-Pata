@@ -16,7 +16,10 @@ import {
 } from '@/types/bookOrganization';
 import { nowIso } from '@/utils/date';
 import { generateId } from '@/utils/ids';
+import { emptySyncMetadata } from '@/utils/syncMetadata';
+import { emptyPdfCloudFields } from '@/utils/pdfCloudStatus';
 import { titleFromFileName } from '@/utils/format';
+import { SyncEnqueueService } from '@/services/SyncEnqueueService';
 
 export interface BookRelinkResult {
   book: Book;
@@ -70,9 +73,13 @@ export const BookService = {
         isDownloaded: true,
         createdAt: now,
         updatedAt: now,
+        currentPageUpdatedAt: null,
+        ...emptySyncMetadata(),
+        ...emptyPdfCloudFields(),
       };
 
       await BookRepository.createBook(book);
+      void SyncEnqueueService.onBookChanged(book.id);
       return book;
     } catch (error) {
       try {
@@ -126,6 +133,7 @@ export const BookService = {
 
     await deleteLocalPdf(id);
     await BookRepository.deleteBook(id);
+    void SyncEnqueueService.onBookDeleted(id);
   },
 
   async renameBook(id: string, title: string): Promise<void> {
@@ -134,18 +142,22 @@ export const BookService = {
       throw new Error('Title cannot be empty.');
     }
     await BookRepository.updateBook(id, { title: trimmed });
+    void SyncEnqueueService.onBookChanged(id);
   },
 
   async updateBookStatus(id: string, status: BookStatus): Promise<void> {
     await BookRepository.updateStatus(id, status);
+    void SyncEnqueueService.onBookChanged(id);
   },
 
   async updateBookCategory(id: string, category: BookCategory): Promise<void> {
     await BookRepository.updateCategory(id, category);
+    void SyncEnqueueService.onBookChanged(id);
   },
 
   async updateBookPriority(id: string, priority: BookPriority): Promise<void> {
     await BookRepository.updatePriority(id, priority);
+    void SyncEnqueueService.onBookChanged(id);
   },
 
   async updateProgress(
@@ -179,6 +191,7 @@ export const BookService = {
     }
 
     await BookRepository.updateBook(id, fields);
+    void SyncEnqueueService.onBookChanged(id);
   },
 
   /** Re-copy helper if needed later; not used in normal import flow. */
@@ -215,6 +228,7 @@ export const BookService = {
         isDownloaded: true,
         ...(pageAdjusted ? { currentPage: adjustedPage } : {}),
       });
+      void SyncEnqueueService.onBookChanged(bookId);
 
       const updated = await BookRepository.getBookById(bookId);
       if (!updated) {
@@ -265,6 +279,7 @@ export const BookService = {
     }
 
     await BookRepository.updateBook(bookId, fields);
+    void SyncEnqueueService.onBookChanged(bookId);
     return adjusted;
   },
 };

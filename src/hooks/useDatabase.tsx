@@ -12,6 +12,7 @@ import { useColorScheme as useSystemColorScheme } from 'react-native';
 
 import { Colors, type ColorScheme } from '@/constants/theme';
 import { getDatabaseEpoch, initializeDatabase } from '@/db/database';
+import { DeviceIdentityService } from '@/services/DeviceIdentityService';
 import { ThemedText } from '@/components/ui/ThemedText';
 
 interface DatabaseContextValue {
@@ -38,6 +39,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     setError(null);
     try {
       await initializeDatabase();
+      await DeviceIdentityService.getOrCreateDeviceId();
       setIsReady(true);
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Database initialization failed'));

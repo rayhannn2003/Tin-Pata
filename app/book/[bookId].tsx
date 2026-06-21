@@ -11,6 +11,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 
 import { BookMissingPdfCard } from '@/components/book/BookMissingPdfCard';
+import { BookPdfCloudCard } from '@/components/book/BookPdfCloudCard';
 import { BookAnalyticsCard } from '@/components/book/BookAnalyticsCard';
 import { BookActionsCard } from '@/components/book/BookActionsCard';
 import {
@@ -65,6 +66,7 @@ export default function BookDetailScreen() {
   const [relinkError, setRelinkError] = useState<string | null>(null);
 
   const pdfMissing = book ? !PdfAvailabilityService.isPdfAvailable(book) : false;
+  const cloudPdfAvailable = Boolean(book?.pdfCloudAvailable && book?.cloudStoragePath);
 
   const categoryOptions = useMemo(
     () =>
@@ -129,12 +131,15 @@ export default function BookDetailScreen() {
     if (!book) {
       return;
     }
-    if (pdfMissing) {
+    if (pdfMissing && !cloudPdfAvailable) {
       void handleRelink();
       return;
     }
+    if (pdfMissing && cloudPdfAvailable) {
+      return;
+    }
     router.push(`/reader/${book.id}`);
-  }, [book, handleRelink, pdfMissing, router]);
+  }, [book, cloudPdfAvailable, handleRelink, pdfMissing, router]);
 
   const handleOpenAnnotation = useCallback(
     (pageNumber: number) => {
@@ -218,18 +223,23 @@ export default function BookDetailScreen() {
             onEditPriority={() => setPriorityPickerVisible(true)}
             onEditStatus={() => setStatusPickerVisible(true)}
           />
-          {pdfMissing ? (
+          {pdfMissing && !cloudPdfAvailable ? (
             <BookMissingPdfCard
               relinking={relinking}
               onRelink={() => void handleRelink()}
               onKeepMetadata={() => setRelinkMessage(t('pdfMissing.progressPreserved'))}
             />
-          ) : (
+          ) : !pdfMissing ? (
             <Button
               label={t('bookDetail.continueReading')}
               onPress={handleOpenReader}
             />
-          )}
+          ) : null}
+          <BookPdfCloudCard
+            book={book}
+            onChanged={refresh}
+            onRelink={() => void handleRelink()}
+          />
           {relinkMessage ? (
             <ThemedText variant="caption" style={{ color: colors.tint }}>
               {relinkMessage}

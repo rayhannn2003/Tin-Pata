@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ThemedText } from '@/components/ui/ThemedText';
 import { useTranslation } from '@/i18n/useTranslation';
+import { useAuth } from '@/features/auth/AuthProvider';
 import { Spacing } from '@/constants/layout';
 import { useThemeColors } from '@/hooks/useColorScheme';
 import type { Book, BookAnnotationCounts, BookStatus } from '@/types';
@@ -19,6 +20,7 @@ import {
 import { categoryLabelKey } from '@/utils/libraryOrganize';
 import { PdfAvailabilityService } from '@/services/PdfAvailabilityService';
 import { PdfReaderService } from '@/services/PdfReaderService';
+import { getPdfCloudBadge } from '@/utils/pdfCloudStatus';
 
 interface BookListItemProps {
   book: Book & BookAnnotationCounts;
@@ -55,8 +57,11 @@ export const BookListItem = memo(function BookListItem({
 }: BookListItemProps) {
   const colors = useThemeColors();
   const { t } = useTranslation();
+  const { user, isConfigured } = useAuth();
+  const isLoggedIn = Boolean(user && isConfigured);
   const pdfMissing =
     pdfMissingProp ?? !PdfAvailabilityService.isPdfAvailable(book);
+  const cloudBadge = getPdfCloudBadge(book, pdfMissing, isLoggedIn);
 
   const pageLabel = formatPageProgress(book.currentPage, book.totalPages);
   const progressPercent = formatReadingProgressPercent(book.currentPage, book.totalPages);
@@ -125,10 +130,17 @@ export const BookListItem = memo(function BookListItem({
                 {t(statusKey(book.status))}
               </ThemedText>
             </View>
-            {pdfMissing ? (
+            {pdfMissing && cloudBadge !== 'cloud_available' ? (
               <View style={[styles.tagBadge, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                 <ThemedText variant="caption" secondary>
                   {t('pdfMissing.badge')}
+                </ThemedText>
+              </View>
+            ) : null}
+            {cloudBadge && cloudBadge !== 'pdf_missing' ? (
+              <View style={[styles.tagBadge, { backgroundColor: colors.tintMuted, borderColor: colors.tint }]}>
+                <ThemedText variant="caption" style={{ color: colors.tint }}>
+                  {t(`pdfCloud.badge.${cloudBadge}`)}
                 </ThemedText>
               </View>
             ) : null}

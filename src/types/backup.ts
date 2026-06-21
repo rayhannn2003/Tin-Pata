@@ -14,6 +14,8 @@ import type {
   Setting,
 } from '@/types';
 import { parseBookCategory, parseBookPriority } from '@/types/bookOrganization';
+import { emptySyncMetadata } from '@/utils/syncMetadata';
+import { emptyPdfCloudFields } from '@/utils/pdfCloudStatus';
 
 /** Current backup schema version — bump when top-level schema changes. */
 export const BACKUP_EXPORT_VERSION = 2;
@@ -228,6 +230,11 @@ function sanitizeBook(raw: unknown): BackupBookRecord | null {
     isDownloaded: readBool(raw.isDownloaded ?? raw.is_downloaded),
     createdAt: readIsoDate(raw.createdAt ?? raw.created_at),
     updatedAt: readIsoDate(raw.updatedAt ?? raw.updated_at),
+    ...emptySyncMetadata(),
+    currentPageUpdatedAt: readIsoDate(
+      raw.currentPageUpdatedAt ?? raw.current_page_updated_at ?? raw.updatedAt ?? raw.updated_at,
+    ),
+    ...emptyPdfCloudFields(),
   };
 }
 
@@ -264,6 +271,8 @@ function sanitizeSession(raw: unknown): ReadingSession | null {
         ? readString(raw.blockerReason ?? raw.blocker_reason)
         : null,
     createdAt: readIsoDate(raw.createdAt ?? raw.created_at),
+    updatedAt: readIsoDate(raw.updatedAt ?? raw.updated_at ?? raw.createdAt ?? raw.created_at),
+    ...emptySyncMetadata(),
   };
 }
 
@@ -282,6 +291,8 @@ function sanitizeBookmark(raw: unknown): Bookmark | null {
     pageNumber: Math.max(1, readNumber(raw.pageNumber ?? raw.page_number, 1)),
     title: typeof raw.title === 'string' ? raw.title : null,
     createdAt: readIsoDate(raw.createdAt ?? raw.created_at),
+    updatedAt: readIsoDate(raw.updatedAt ?? raw.updated_at ?? raw.createdAt ?? raw.created_at),
+    ...emptySyncMetadata(),
   };
 }
 
@@ -303,6 +314,7 @@ function sanitizeNote(raw: unknown): Note | null {
     noteText,
     createdAt,
     updatedAt: readIsoDate(raw.updatedAt ?? raw.updated_at ?? createdAt),
+    ...emptySyncMetadata(),
   };
 }
 
@@ -321,6 +333,8 @@ function sanitizeGoal(raw: unknown): DailyGoal | null {
     targetValue: readNumber(raw.targetValue ?? raw.target_value, 1),
     isActive: readBool(raw.isActive ?? raw.is_active),
     createdAt: readIsoDate(raw.createdAt ?? raw.created_at),
+    updatedAt: readIsoDate(raw.updatedAt ?? raw.updated_at ?? raw.createdAt ?? raw.created_at),
+    ...emptySyncMetadata(),
   };
 }
 
@@ -339,6 +353,8 @@ function sanitizeReflection(raw: unknown): Reflection | null {
     text,
     bookId: typeof bookIdRaw === 'string' && bookIdRaw.length > 0 ? bookIdRaw : null,
     createdAt: readIsoDate(raw.createdAt ?? raw.created_at),
+    updatedAt: readIsoDate(raw.updatedAt ?? raw.updated_at ?? raw.createdAt ?? raw.created_at),
+    ...emptySyncMetadata(),
   };
 }
 

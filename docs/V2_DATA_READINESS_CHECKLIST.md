@@ -1,59 +1,59 @@
 # v2 Data Readiness Checklist
 
-Short gate list before adding Supabase / cloud sync. **Not implemented in v1.5B.**
+Gate list for cloud sync. Updated after **v2.0C**.
 
 ---
 
 ## Identity & timestamps
 
-- [ ] **Stable UUIDs** — ✅ today (`Crypto.randomUUID`); never regenerate on sync
-- [ ] **`updated_at` on all mutable tables** — ⚠️ partial (books, notes, settings only)
-- [ ] **`deleted_at` (soft delete)** — ❌ hard delete today; required before sync
-- [ ] **`user_id` on user-owned rows** — ❌ planned for v2
-- [ ] **`device_id` on writes** — ❌ planned for v2
-- [ ] **`sync_status` per row** — ❌ planned (`pending` / `synced` / `conflict`)
-- [ ] **`last_synced_at`** — ❌ planned (row or table watermark)
+- [x] **Stable UUIDs** — record ids via `Crypto.randomUUID`
+- [x] **`updated_at` on all mutable tables**
+- [ ] **`deleted_at` (soft delete)** — remote soft delete; local still hard delete (v2.0D)
+- [x] **`user_id` on user-owned rows** — set on manual link
+- [x] **`device_id` on writes**
+- [x] **`sync_status` per row**
+- [x] **`last_synced_at`** — updated after successful push
+
+---
+
+## Sync infrastructure
+
+- [x] **Local sync queue** — `sync_queue` table + services
+- [x] **Supabase metadata tables** — see `V2_SUPABASE_METADATA_SCHEMA.sql`
+- [x] **Manual sync engine** — push queue + pull since last pull
+- [x] **Link local data UI** — confirm before linking
+- [ ] **Background sync worker** — not in v2.0C
+- [ ] **Conflict resolver UI** — baseline LWW only
 
 ---
 
 ## Integrity & conflicts
 
-- [ ] **Conflict rules documented** — ❌ needed (LWW vs merge per entity)
-- [ ] **Tombstones propagate** — ❌ depends on `deleted_at`
-- [ ] **Bookmark uniqueness policy** — one per page; define cross-device duplicate handling
-- [ ] **Single active daily goal** — enforce on import/sync or via DB constraint
-- [ ] **Reflection orphan policy** — `book_id` nullable OK; sync nullable FK as-is
+- [x] **Conflict rules documented** — [V2_METADATA_SYNC.md](./V2_METADATA_SYNC.md)
+- [ ] **Tombstones propagate locally** — pull delete only
+- [ ] **Bookmark uniqueness policy** — cross-device duplicates TBD
+- [ ] **Single active daily goal** — server constraint TBD
 
 ---
 
 ## Backup & migration
 
-- [ ] **Local-to-cloud migration plan** — ❌ export JSON → upload rows + relink/cloud PDFs
-- [ ] **Backup import must not break sync IDs** — preserve UUIDs; no remapping on merge
-- [ ] **Replace import vs sync** — full local wipe conflicts with multi-device; cloud replaces local carefully
-- [ ] **Backup version bump strategy** — increment `backupVersion` when sync fields added
+- [x] **Backup import resets sync state** — local + no user_id
+- [x] **Preserve UUIDs on import**
+- [ ] **Backup version bump for sync fields** — optional in JSON
 
 ---
 
 ## PDF storage
 
-- [ ] **PDF path plan** — local `{documentDirectory}/pdfs/{bookId}.pdf` today
-- [ ] **Remote storage key** — cloud `public_id` or signed URL field (legacy columns exist, unused)
-- [ ] **Missing PDF flow** — keep runtime detection; add cloud download state in v2
-- [ ] **Orphan PDF cleanup** — after replace/reset (not done today)
-
----
-
-## Schema hygiene (optional pre-v2)
-
-- [ ] DB CHECK for `category` / `priority` / `status`
-- [ ] `updated_at` on `reading_sessions`, `bookmarks`, `daily_goals`, `reflections`
-- [ ] Import pre-check for bookmark page duplicates
+- [ ] **PDF cloud path** — not implemented
+- [x] **Missing PDF relink** — still local-only
 
 ---
 
 ## References
 
-- [DB_AUDIT.md](./DB_AUDIT.md) — table-level audit
-- [BACKUP_AUDIT.md](./BACKUP_AUDIT.md) — import/export audit
-- [ENGINEERING_ARCHITECTURE.md](./ENGINEERING_ARCHITECTURE.md) — v2 bridge overview
+- [V2_METADATA_SYNC.md](./V2_METADATA_SYNC.md)
+- [V2_SYNC_STRATEGY.md](./V2_SYNC_STRATEGY.md)
+- [DB_AUDIT.md](./DB_AUDIT.md)
+- [BACKUP_AUDIT.md](./BACKUP_AUDIT.md)

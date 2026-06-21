@@ -1,4 +1,5 @@
 import { withDatabase } from '@/db/database';
+import { getLocalWriteSyncFields } from '@/db/syncWriteHelpers';
 import type { Book, BookStatus } from '@/types';
 import {
   DEFAULT_BOOK_CATEGORY,
@@ -8,6 +9,7 @@ import {
   type BookCategory,
   type BookPriority,
 } from '@/types/bookOrganization';
+import { mapSyncFromRow } from '@/utils/syncMetadata';
 
 interface BookRow {
   id: string;
@@ -27,6 +29,19 @@ interface BookRow {
   is_downloaded: number;
   created_at: string;
   updated_at: string;
+  user_id: string | null;
+  device_id: string | null;
+  sync_status: string | null;
+  last_synced_at: string | null;
+  deleted_at: string | null;
+  current_page_updated_at: string | null;
+  cloud_storage_path: string | null;
+  pdf_file_name: string | null;
+  pdf_file_size: number | null;
+  pdf_sha256: string | null;
+  pdf_uploaded_at: string | null;
+  pdf_cloud_available: number;
+  pdf_cloud_deleted_at: string | null;
 }
 
 function mapRow(row: BookRow): Book {
@@ -48,6 +63,15 @@ function mapRow(row: BookRow): Book {
     isDownloaded: row.is_downloaded === 1,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    currentPageUpdatedAt: row.current_page_updated_at,
+    cloudStoragePath: row.cloud_storage_path,
+    pdfFileName: row.pdf_file_name,
+    pdfFileSize: row.pdf_file_size,
+    pdfSha256: row.pdf_sha256,
+    pdfUploadedAt: row.pdf_uploaded_at,
+    pdfCloudAvailable: row.pdf_cloud_available === 1,
+    pdfCloudDeletedAt: row.pdf_cloud_deleted_at,
+    ...mapSyncFromRow(row),
   };
 }
 
@@ -55,7 +79,7 @@ export const BookRepository = {
   async getAllBooks(): Promise<Book[]> {
     return withDatabase(async (db) => {
       const rows = await db.getAllAsync<BookRow>(
-        'SELECT * FROM books ORDER BY updated_at DESC',
+        'SELECT * FROM books WHERE deleted_at IS NULL ORDER BY updated_at DESC',
       );
       return rows.map(mapRow);
     });
@@ -64,7 +88,7 @@ export const BookRepository = {
   async getBookById(id: string): Promise<Book | null> {
     return withDatabase(async (db) => {
       const row = await db.getFirstAsync<BookRow>(
-        'SELECT * FROM books WHERE id = ?',
+        'SELECT * FROM books WHERE id = ? AND deleted_at IS NULL',
         id,
       );
       return row ? mapRow(row) : null;
@@ -72,13 +96,17 @@ export const BookRepository = {
   },
 
   async createBook(book: Book): Promise<void> {
+    const sync = await getLocalWriteSyncFields();
     await withDatabase(async (db) => {
       await db.runAsync(
         `INSERT INTO books (
           id, title, author, local_uri, file_name, file_size,
           cloudinary_public_id, cloudinary_asset_id, total_pages, current_page,
-          status, category, priority, is_uploaded, is_downloaded, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          status, category, priority, is_uploaded, is_downloaded, created_at, updated_at,
+          user_id, device_id, sync_status, last_synced_at, deleted_at, current_page_updated_at,
+          cloud_storage_path, pdf_file_name, pdf_file_size, pdf_sha256, pdf_uploaded_at,
+          pdf_cloud_available, pdf_cloud_deleted_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         book.id,
         book.title,
         book.author,
@@ -95,7 +123,20 @@ export const BookRepository = {
         book.isUploaded ? 1 : 0,
         book.isDownloaded ? 1 : 0,
         book.createdAt,
-        book.updatedAt,
+        sync.updatedAt,
+        book.userId ?? sync.userId,
+        sync.deviceId,
+        sync.syncStatus,
+        book.lastSyncedAt,
+        null,
+        book.currentPageUpdatedAt ?? sync.updatedAt,
+        book.cloudStoragePath,
+        book.pdfFileName,
+        book.pdfFileSize,
+        book.pdfSha256,
+        book.pdfUploadedAt,
+        book.pdfCloudAvailable ? 1 : 0,
+        book.pdfCloudDeletedAt,
       );
     });
   },
@@ -106,10 +147,19 @@ export const BookRepository = {
       return;
     }
 
+    const sync = await getLocalWriteSyncFields();
+    const pageChanged =
+      fields.currentPage !== undefined && fields.currentPage !== existing.currentPage;
+
     const updated: Book = {
       ...existing,
       ...fields,
-      updatedAt: new Date().toISOString(),
+      updatedAt: sync.updatedAt,
+      deviceId: sync.deviceId,
+      syncStatus: sync.syncStatus,
+      currentPageUpdatedAt: pageChanged
+        ? sync.updatedAt
+        : (fields.currentPageUpdatedAt ?? existing.currentPageUpdatedAt),
     };
 
     await withDatabase(async (db) => {
@@ -118,7 +168,10 @@ export const BookRepository = {
           title = ?, author = ?, local_uri = ?, file_name = ?, file_size = ?,
           cloudinary_public_id = ?, cloudinary_asset_id = ?, total_pages = ?,
           current_page = ?, status = ?, category = ?, priority = ?,
-          is_uploaded = ?, is_downloaded = ?, updated_at = ?
+          is_uploaded = ?, is_downloaded = ?, updated_at = ?,
+          device_id = ?, sync_status = ?, current_page_updated_at = ?,
+          cloud_storage_path = ?, pdf_file_name = ?, pdf_file_size = ?, pdf_sha256 = ?,
+          pdf_uploaded_at = ?, pdf_cloud_available = ?, pdf_cloud_deleted_at = ?
         WHERE id = ?`,
         updated.title,
         updated.author,
@@ -135,6 +188,16 @@ export const BookRepository = {
         updated.isUploaded ? 1 : 0,
         updated.isDownloaded ? 1 : 0,
         updated.updatedAt,
+        updated.deviceId,
+        updated.syncStatus,
+        updated.currentPageUpdatedAt,
+        updated.cloudStoragePath,
+        updated.pdfFileName,
+        updated.pdfFileSize,
+        updated.pdfSha256,
+        updated.pdfUploadedAt,
+        updated.pdfCloudAvailable ? 1 : 0,
+        updated.pdfCloudDeletedAt,
         id,
       );
     });
@@ -156,6 +219,7 @@ export const BookRepository = {
     await this.updateBook(id, { priority });
   },
 
+  /** Hard delete — soft delete planned for a later phase. */
   async deleteBook(id: string): Promise<void> {
     await withDatabase(async (db) => {
       await db.runAsync('DELETE FROM books WHERE id = ?', id);
@@ -165,7 +229,7 @@ export const BookRepository = {
   async count(): Promise<number> {
     return withDatabase(async (db) => {
       const row = await db.getFirstAsync<{ count: number }>(
-        'SELECT COUNT(*) as count FROM books',
+        'SELECT COUNT(*) as count FROM books WHERE deleted_at IS NULL',
       );
       return row?.count ?? 0;
     });
@@ -175,7 +239,7 @@ export const BookRepository = {
     return withDatabase(async (db) => {
       const row = await db.getFirstAsync<BookRow>(
         `SELECT * FROM books
-         WHERE status = 'reading'
+         WHERE status = 'reading' AND deleted_at IS NULL
          ORDER BY updated_at DESC
          LIMIT 1`,
       );
@@ -187,7 +251,7 @@ export const BookRepository = {
     return withDatabase(async (db) => {
       const row = await db.getFirstAsync<BookRow>(
         `SELECT * FROM books
-         WHERE status IN ('reading', 'paused', 'not_started')
+         WHERE status IN ('reading', 'paused', 'not_started') AND deleted_at IS NULL
          ORDER BY updated_at DESC
          LIMIT 1`,
       );

@@ -1,5 +1,7 @@
 import { withDatabase } from '@/db/database';
+import { getLocalWriteSyncFields } from '@/db/syncWriteHelpers';
 import type { DailyGoal, GoalType } from '@/types';
+import { mapSyncFromRow } from '@/utils/syncMetadata';
 
 interface GoalRow {
   id: string;
@@ -7,6 +9,12 @@ interface GoalRow {
   target_value: number;
   is_active: number;
   created_at: string;
+  updated_at: string | null;
+  user_id: string | null;
+  device_id: string | null;
+  sync_status: string | null;
+  last_synced_at: string | null;
+  deleted_at: string | null;
 }
 
 function mapRow(row: GoalRow): DailyGoal {
@@ -16,28 +24,49 @@ function mapRow(row: GoalRow): DailyGoal {
     targetValue: row.target_value,
     isActive: row.is_active === 1,
     createdAt: row.created_at,
+    updatedAt: row.updated_at ?? row.created_at,
+    ...mapSyncFromRow(row),
   };
 }
 
 export const GoalRepository = {
+  async getAllGoals(): Promise<DailyGoal[]> {
+    return withDatabase(async (db) => {
+      const rows = await db.getAllAsync<GoalRow>(
+        'SELECT * FROM daily_goals WHERE deleted_at IS NULL ORDER BY created_at ASC',
+      );
+      return rows.map(mapRow);
+    });
+  },
+
   async getActiveGoal(): Promise<DailyGoal | null> {
     return withDatabase(async (db) => {
       const row = await db.getFirstAsync<GoalRow>(
-        'SELECT * FROM daily_goals WHERE is_active = 1 ORDER BY created_at DESC LIMIT 1',
+        'SELECT * FROM daily_goals WHERE is_active = 1 AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1',
       );
       return row ? mapRow(row) : null;
     });
   },
 
   async createGoal(goal: DailyGoal): Promise<void> {
+    const sync = await getLocalWriteSyncFields();
     await withDatabase(async (db) => {
       await db.runAsync(
-        'INSERT INTO daily_goals (id, goal_type, target_value, is_active, created_at) VALUES (?, ?, ?, ?, ?)',
+        `INSERT INTO daily_goals (
+          id, goal_type, target_value, is_active, created_at,
+          user_id, device_id, sync_status, last_synced_at, updated_at, deleted_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         goal.id,
         goal.goalType,
         goal.targetValue,
         goal.isActive ? 1 : 0,
         goal.createdAt,
+        goal.userId ?? sync.userId,
+        sync.deviceId,
+        sync.syncStatus,
+        goal.lastSyncedAt,
+        sync.updatedAt,
+        null,
       );
     });
   },
@@ -46,6 +75,7 @@ export const GoalRepository = {
     id: string,
     fields: Partial<Pick<DailyGoal, 'goalType' | 'targetValue' | 'isActive'>>,
   ): Promise<void> {
+    const sync = await getLocalWriteSyncFields();
     await withDatabase(async (db) => {
       const existing = await db.getFirstAsync<GoalRow>(
         'SELECT * FROM daily_goals WHERE id = ?',
@@ -61,18 +91,31 @@ export const GoalRepository = {
         fields.isActive !== undefined ? (fields.isActive ? 1 : 0) : existing.is_active;
 
       await db.runAsync(
-        'UPDATE daily_goals SET goal_type = ?, target_value = ?, is_active = ? WHERE id = ?',
+        `UPDATE daily_goals SET
+          goal_type = ?, target_value = ?, is_active = ?,
+          updated_at = ?, device_id = ?, sync_status = ?
+         WHERE id = ?`,
         goalType,
         targetValue,
         isActive,
+        sync.updatedAt,
+        sync.deviceId,
+        sync.syncStatus,
         id,
       );
     });
   },
 
   async deactivateAllGoals(): Promise<void> {
+    const sync = await getLocalWriteSyncFields();
     await withDatabase(async (db) => {
-      await db.runAsync('UPDATE daily_goals SET is_active = 0 WHERE is_active = 1');
+      await db.runAsync(
+        `UPDATE daily_goals SET is_active = 0, updated_at = ?, device_id = ?, sync_status = ?
+         WHERE is_active = 1 AND deleted_at IS NULL`,
+        sync.updatedAt,
+        sync.deviceId,
+        sync.syncStatus,
+      );
     });
   },
 

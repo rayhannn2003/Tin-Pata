@@ -2,7 +2,39 @@
 
 Tin Pata (তিনপাতা) — release notes for personal-use builds.
 
-**Current stable:** **v1.4.0** (June 2026)
+**Current stable:** **v1.4.0** · **v2.0D alpha:** **2.0.0-alpha.4** (PDF cloud backup)
+
+---
+
+## v2.0D — PDF cloud backup (alpha)
+
+Manual PDF upload/download/delete via Supabase Storage private bucket. **50 MB max.** Local-first unchanged.
+
+Docs: [V2_PDF_CLOUD_BACKUP.md](./V2_PDF_CLOUD_BACKUP.md), [V2_SUPABASE_STORAGE_SETUP.sql](./V2_SUPABASE_STORAGE_SETUP.sql), [V2_PDF_CLOUD_BACKUP_TEST_CHECKLIST.md](./V2_PDF_CLOUD_BACKUP_TEST_CHECKLIST.md)
+
+---
+
+## v2.0C — Metadata sync (alpha)
+
+Local sync queue + manual push/pull to Supabase Postgres. **PDFs not synced.** Link local data requires user confirmation.
+
+Docs: [V2_METADATA_SYNC.md](./V2_METADATA_SYNC.md), [V2_METADATA_SYNC_TEST_CHECKLIST.md](./V2_METADATA_SYNC_TEST_CHECKLIST.md), [V2_SUPABASE_METADATA_SCHEMA.sql](./V2_SUPABASE_METADATA_SCHEMA.sql)
+
+---
+
+## v2.0B — Local sync fields (alpha)
+
+SQLite sync metadata columns + stable device identity. **No cloud sync yet.** Local-only mode unchanged.
+
+Docs: [V2_LOCAL_SYNC_FIELDS.md](./V2_LOCAL_SYNC_FIELDS.md), [V2_SYNC_STRATEGY.md](./V2_SYNC_STRATEGY.md), [V2_LOCAL_SYNC_FIELDS_TEST_CHECKLIST.md](./V2_LOCAL_SYNC_FIELDS_TEST_CHECKLIST.md)
+
+---
+
+## v2.0A — Supabase auth foundation (alpha)
+
+Optional email auth + profiles. **No cloud sync yet.** Local-only mode unchanged.
+
+Docs: [V2_AUTH_FOUNDATION.md](./V2_AUTH_FOUNDATION.md), [V2_AUTH_TEST_CHECKLIST.md](./V2_AUTH_TEST_CHECKLIST.md), [V2_SUPABASE_SETUP.sql](./V2_SUPABASE_SETUP.sql)
 
 ---
 

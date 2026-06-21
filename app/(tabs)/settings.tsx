@@ -2,6 +2,8 @@ import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
 import { Alert, StyleSheet, View } from 'react-native';
 
+import { AccountSection } from '@/components/settings/AccountSection';
+import { CloudSyncSection } from '@/components/settings/CloudSyncSection';
 import { DataBackupSection } from '@/components/settings/DataBackupSection';
 import { ReadingExperienceSettings } from '@/components/settings/ReadingExperienceSettings';
 import { LanguagePicker } from '@/components/settings/LanguagePicker';
@@ -77,6 +79,12 @@ export default function SettingsScreen() {
         <ThemedText secondary style={styles.intro}>
           {t('settings.intro')}
         </ThemedText>
+
+        <View style={styles.section}>
+          <SectionHeader title={t('auth.account')} subtitle={t('auth.accountSectionSubtitle')} />
+          <AccountSection />
+          <CloudSyncSection />
+        </View>
 
         <View style={styles.section}>
           <SectionHeader

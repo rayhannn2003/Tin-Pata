@@ -37,6 +37,11 @@ export const SettingsRepository = {
         now,
       );
     });
+
+    const { SyncEnqueueService, isApplyingRemoteSync } = await import('@/services/SyncEnqueueService');
+    if (!isApplyingRemoteSync()) {
+      await SyncEnqueueService.onSettingChanged(key, value);
+    }
   },
 
   async getAll(): Promise<Setting[]> {

@@ -1,7 +1,9 @@
 import { NoteRepository } from '@/db/repositories/NoteRepository';
+import { SyncEnqueueService } from '@/services/SyncEnqueueService';
 import type { Note, NoteWithBook } from '@/types';
 import { nowIso } from '@/utils/date';
 import { generateId } from '@/utils/ids';
+import { emptySyncMetadata } from '@/utils/syncMetadata';
 
 export class NoteError extends Error {
   constructor(message: string) {
@@ -29,6 +31,7 @@ export const NoteService = {
 
   async deleteNote(id: string): Promise<void> {
     await NoteRepository.deleteNote(id);
+    void SyncEnqueueService.onNoteDeleted(id);
   },
 
   async updateNote(id: string, noteText: string): Promise<Note> {
@@ -41,6 +44,7 @@ export const NoteService = {
       throw new NoteError('Note not found.');
     }
     await NoteRepository.updateNote(id, trimmed);
+    void SyncEnqueueService.onNoteChanged(id);
     return {
       ...existing,
       noteText: trimmed,
@@ -60,6 +64,7 @@ export const NoteService = {
     if (existing.length > 0) {
       const note = existing[0];
       await NoteRepository.updateNote(note.id, trimmed);
+      void SyncEnqueueService.onNoteChanged(note.id);
       return {
         ...note,
         noteText: trimmed,
@@ -75,8 +80,10 @@ export const NoteService = {
       noteText: trimmed,
       createdAt: now,
       updatedAt: now,
+      ...emptySyncMetadata(),
     };
     await NoteRepository.createNote(note);
+    void SyncEnqueueService.onNoteChanged(note.id);
     return note;
   },
 };

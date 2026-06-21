@@ -1,7 +1,9 @@
 import { BookmarkRepository } from '@/db/repositories/BookmarkRepository';
+import { SyncEnqueueService } from '@/services/SyncEnqueueService';
 import type { Bookmark, BookmarkWithBook } from '@/types';
 import { nowIso } from '@/utils/date';
 import { generateId } from '@/utils/ids';
+import { emptySyncMetadata } from '@/utils/syncMetadata';
 
 export class BookmarkError extends Error {
   constructor(message: string) {
@@ -29,6 +31,7 @@ export const BookmarkService = {
 
   async deleteBookmark(id: string): Promise<void> {
     await BookmarkRepository.deleteBookmark(id);
+    void SyncEnqueueService.onBookmarkDeleted(id);
   },
 
   async toggleBookmark(
@@ -41,19 +44,24 @@ export const BookmarkService = {
 
     if (existing) {
       await BookmarkRepository.deleteBookmark(existing.id);
+      void SyncEnqueueService.onBookmarkDeleted(existing.id);
       return { bookmarked: false, bookmark: null };
     }
 
+    const now = nowIso();
     const bookmark: Bookmark = {
       id: await generateId(),
       bookId,
       pageNumber: page,
       title: title?.trim() || `Page ${page}`,
-      createdAt: nowIso(),
+      createdAt: now,
+      updatedAt: now,
+      ...emptySyncMetadata(),
     };
 
     try {
       await BookmarkRepository.createBookmark(bookmark);
+      void SyncEnqueueService.onBookmarkChanged(bookmark.id);
       return { bookmarked: true, bookmark };
     } catch {
       throw new BookmarkError('Could not save bookmark. This page may already be bookmarked.');

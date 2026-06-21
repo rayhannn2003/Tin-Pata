@@ -2,7 +2,7 @@
 
 A personal, offline-first mobile app for building a consistent PDF reading habit. Import your books as PDFs, read them inside the app, track sessions and progress, and recover from reader's block — all stored locally on your device.
 
-**Version 1.4.0** · Personal-use only · No backend · No cloud sync
+**Version 2.0.0-alpha.4** · Personal-use · Optional cloud account · **Metadata sync + optional PDF cloud backup**
 
 ---
 
@@ -83,6 +83,21 @@ Full guide: [docs/BACKUP_AND_RESTORE.md](docs/BACKUP_AND_RESTORE.md)
 
 Full DevOps guide: [docs/DEVOPS_AND_RELEASE_ENGINEERING.md](docs/DEVOPS_AND_RELEASE_ENGINEERING.md) · Release: [RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md) · Rollback: [ROLLBACK_AND_RECOVERY.md](docs/ROLLBACK_AND_RECOVERY.md) · Secrets: [ENVIRONMENT_AND_SECRETS.md](docs/ENVIRONMENT_AND_SECRETS.md)
 
+### Supabase (optional — v2.0A auth)
+
+Cloud sign-in is **optional**. Reading data stays local until a future sync phase.
+
+```bash
+cp .env.example .env
+# Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY
+# Run docs/V2_SUPABASE_SETUP.sql in Supabase SQL Editor
+npx expo start -c
+```
+
+Without `.env`, the app works fully in local-only mode. See [docs/V2_AUTH_FOUNDATION.md](docs/V2_AUTH_FOUNDATION.md).
+
+After adding native auth dependencies, rebuild dev client once: `npx expo prebuild --clean --platform android && npx expo run:android`.
+
 After changing `app.json` plugins, icon, splash, or permissions → prebuild + `run:android` again (Metro alone is not enough).
 
 ---
@@ -111,6 +126,18 @@ See [docs/BRAND_ASSETS.md](docs/BRAND_ASSETS.md) for paths and sizes.
 | [Rollback & Recovery](docs/ROLLBACK_AND_RECOVERY.md) | Git, data, build recovery |
 | [Environment & Secrets](docs/ENVIRONMENT_AND_SECRETS.md) | v1/v2 secrets policy |
 | [v2 DevOps Readiness](docs/V2_DEVOPS_READINESS_CHECKLIST.md) | Pre-cloud infra checklist |
+| [v2 Auth Foundation](docs/V2_AUTH_FOUNDATION.md) | Supabase auth (v2.0A) |
+| [v2 Auth Test Checklist](docs/V2_AUTH_TEST_CHECKLIST.md) | Auth QA checklist |
+| [v2 Local Sync Fields](docs/V2_LOCAL_SYNC_FIELDS.md) | Sync metadata + device id (v2.0B) |
+| [v2 Sync Strategy](docs/V2_SYNC_STRATEGY.md) | Cloud sync phase plan |
+| [v2 Local Sync Test Checklist](docs/V2_LOCAL_SYNC_FIELDS_TEST_CHECKLIST.md) | v2.0B QA checklist |
+| [v2 Metadata Sync](docs/V2_METADATA_SYNC.md) | Sync queue + manual sync (v2.0C) |
+| [v2 Metadata Sync Test Checklist](docs/V2_METADATA_SYNC_TEST_CHECKLIST.md) | v2.0C QA checklist |
+| [v2 Supabase Metadata Schema](docs/V2_SUPABASE_METADATA_SCHEMA.sql) | Postgres tables for sync |
+| [v2 PDF Cloud Backup](docs/V2_PDF_CLOUD_BACKUP.md) | Supabase Storage PDF backup (v2.0D) |
+| [v2 Supabase Storage Setup](docs/V2_SUPABASE_STORAGE_SETUP.sql) | Storage bucket + policies |
+| [v2 PDF Cloud Test Checklist](docs/V2_PDF_CLOUD_BACKUP_TEST_CHECKLIST.md) | v2.0D QA checklist |
+| [v2 Storage Strategy](docs/V2_STORAGE_STRATEGY.md) | Local + cloud storage plan |
 | [v1.4 Release Checklist](docs/V1_4_RELEASE_CHECKLIST.md) | Final QA sign-off (v1.4.0) |
 | [Backup & Restore](docs/BACKUP_AND_RESTORE.md) | Export, import, relink, safety |
 | [Known Limitations](docs/KNOWN_LIMITATIONS.md) | Platform, reader, backup constraints |

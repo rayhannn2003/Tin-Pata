@@ -6,6 +6,7 @@ import { DEFAULT_GOAL_TARGET, DEFAULT_GOAL_TYPE } from '@/types/goal';
 import { formatGoalProgressLine, formatGoalTypeLabel } from '@/utils/format';
 import { nowIso } from '@/utils/date';
 import { generateId } from '@/utils/ids';
+import { emptySyncMetadata } from '@/utils/syncMetadata';
 
 export class GoalError extends Error {
   constructor(message: string) {
@@ -25,12 +26,15 @@ export const GoalService = {
       return existing;
     }
 
+    const now = nowIso();
     const goal: DailyGoal = {
       id: await generateId(),
       goalType: DEFAULT_GOAL_TYPE,
       targetValue: DEFAULT_GOAL_TARGET,
       isActive: true,
-      createdAt: nowIso(),
+      createdAt: now,
+      updatedAt: now,
+      ...emptySyncMetadata(),
     };
     await GoalRepository.createGoal(goal);
     return goal;
@@ -52,12 +56,15 @@ export const GoalService = {
     this.validateGoalType(goalType);
     this.validateTargetValue(targetValue);
 
+    const now = nowIso();
     const goal: DailyGoal = {
       id: await generateId(),
       goalType,
       targetValue,
       isActive: true,
-      createdAt: nowIso(),
+      createdAt: now,
+      updatedAt: now,
+      ...emptySyncMetadata(),
     };
     await GoalRepository.setActiveGoal(goal);
     return goal;

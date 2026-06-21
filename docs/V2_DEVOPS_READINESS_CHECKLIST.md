@@ -1,49 +1,48 @@
 # v2 DevOps Readiness Checklist
 
-Gate list before cloud sync and public release. **Not implemented in v1.5D.**
+Gate list before full cloud sync. **v2.0A:** auth foundation only.
 
 ---
 
-## Infrastructure
+## Supabase & secrets
 
-- [ ] **Supabase env plan** — `EXPO_PUBLIC_SUPABASE_URL`, anon key; secrets on Edge Functions only
-- [ ] **Separate dev/prod Supabase projects** — no shared production data in dev
-- [ ] **RLS on all tables** before any real user accounts
-- [ ] **Edge Functions** for LLM, webhooks, privileged operations
-- [ ] **Migration plan** — local SQLite → cloud rows; backup before first sync
+- [x] **Anon key in app only** — v2.0A (`EXPO_PUBLIC_*`)
+- [ ] **Separate dev/prod Supabase projects**
+- [ ] **RLS on all user tables** — `profiles` done; sync tables later
+- [ ] **Edge Functions** for secret/LLM calls
+- [ ] **Never service role in mobile app**
+- [ ] **`.env` gitignored** — use `.env.example`
 
 ---
 
 ## Release engineering
 
-- [ ] **Version bump process** — keep `package.json`, `app.json`, EAS remote version aligned
-- [ ] **Release channel decision** — EAS Update vs store tracks vs manual APK only
-- [ ] **Build profiles** — dev / preview / production env vars per profile in `eas.json`
-- [ ] **Database migrations** — server-side + client schema version coordination
-- [ ] **Rollback plan** — disable sync flag; ship patch APK; restore from JSON backup
+- [ ] **Backup before sync migration** — user prompt mandatory
+- [ ] **DB migration plan** — SQLite + Supabase coordination
+- [ ] **Build profile env vars** in `eas.json` per environment
+- [ ] **Release channel** — EAS Update vs APK-only decision
+- [ ] **Rollback plan** — disable sync; patch APK; JSON backup restore
 
 ---
 
 ## Observability & compliance
 
-- [ ] **Crash/error logging decision** — Sentry or similar (not in v1)
-- [ ] **Privacy policy** — required before public / Play Store release
-- [ ] **Data export/deletion** — GDPR-style user data export + account delete flow
-- [ ] **Backup before sync migration** — mandatory user prompt on first v2 enable
+- [ ] **Crash/error logging** (Sentry etc.)
+- [ ] **Privacy policy** before public account release
+- [ ] **Data export/deletion** — account delete + export flow
 
 ---
 
-## Security review (before v2 ship)
+## v2.0A complete
 
-- [ ] No service-role keys in repo or APK
-- [ ] No LLM keys in client
-- [ ] `.env.example` documented; `.env` gitignored
-- [ ] Pen-test anon key + RLS policies
+- [x] Optional Supabase Auth
+- [x] Profiles SQL + RLS draft
+- [x] Local-only mode unchanged
 
 ---
 
 ## References
 
 - [ENVIRONMENT_AND_SECRETS.md](./ENVIRONMENT_AND_SECRETS.md)
-- [V2_DATA_READINESS_CHECKLIST.md](./V2_DATA_READINESS_CHECKLIST.md)
+- [V2_AUTH_FOUNDATION.md](./V2_AUTH_FOUNDATION.md)
 - [RELEASE_PROCESS.md](./RELEASE_PROCESS.md)

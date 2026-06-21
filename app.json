@@ -2,7 +2,7 @@
   "expo": {
     "name": "Tin Pata",
     "slug": "reading-habit-tracker",
-    "version": "1.4.0",
+    "version": "2.0.0-alpha.5",
     "orientation": "portrait",
     "icon": "./assets/images/updatedIcon.png",
     "scheme": "tinpata",

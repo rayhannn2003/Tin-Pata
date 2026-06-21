@@ -4,6 +4,7 @@ import type { Book } from '@/types';
 import type { RescueOption, RescueStartResult } from '@/types/rescue';
 import { nowIso } from '@/utils/date';
 import { generateId } from '@/utils/ids';
+import { emptySyncMetadata } from '@/utils/syncMetadata';
 
 export class RescueError extends Error {
   constructor(message: string) {
@@ -99,11 +100,14 @@ export const RescueService = {
     if (!trimmed) {
       throw new RescueError('Write a few words about what feels stuck.');
     }
+    const now = nowIso();
     await ReflectionRepository.createReflection({
       id: await generateId(),
       text: trimmed,
       bookId: bookId ?? null,
-      createdAt: nowIso(),
+      createdAt: now,
+      updatedAt: now,
+      ...emptySyncMetadata(),
     });
   },
 };

@@ -1,5 +1,6 @@
 import { BookRepository } from '@/db/repositories/BookRepository';
 import { SessionRepository } from '@/db/repositories/SessionRepository';
+import { SyncEnqueueService } from '@/services/SyncEnqueueService';
 import type { Mood, ReadingSession } from '@/types';
 import type {
   FinishSessionInput,
@@ -12,6 +13,7 @@ import type {
 } from '@/types/session';
 import { getTodayBounds, nowIso } from '@/utils/date';
 import { generateId } from '@/utils/ids';
+import { emptySyncMetadata } from '@/utils/syncMetadata';
 
 export class ReadingSessionError extends Error {
   constructor(message: string) {
@@ -120,9 +122,12 @@ export const ReadingSessionService = {
       mood: this.mapMoodToDb(input.mood),
       blockerReason: this.mapBlockerToDb(input.blocker),
       createdAt: nowIso(),
+      updatedAt: nowIso(),
+      ...emptySyncMetadata(),
     };
 
     await SessionRepository.createSession(session);
+    void SyncEnqueueService.onSessionCreated(session.id);
 
     return {
       sessionId: session.id,
