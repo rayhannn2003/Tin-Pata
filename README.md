@@ -89,7 +89,7 @@ Cloud sign-in is **optional**. Reading data stays local until a future sync phas
 
 ```bash
 cp .env.example .env
-# Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY
+# Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 # Run docs/V2_SUPABASE_SETUP.sql in Supabase SQL Editor
 npx expo start -c
 ```

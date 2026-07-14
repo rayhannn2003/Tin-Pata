@@ -71,6 +71,8 @@ export const translations: Record<AppLanguage, TranslationTree> = {
       emailNotConfirmed:
         'This account is not confirmed yet. Turn OFF "Confirm email" in Supabase, or delete the test user and sign up again.',
       emailAlreadyRegistered: 'This email is already registered. Try Sign in instead.',
+      invalidApiKey:
+        'Supabase API key in this APK is wrong or outdated. Rebuild the preview APK after updating EAS env vars (see docs/V2_PERSONAL_APK_INSTALL.md).',
       weakPassword: 'Password is too weak. Use at least 6 characters.',
       displayName: 'Display name',
       displayNamePlaceholder: 'Your name (optional)',
@@ -775,6 +777,8 @@ export const translations: Record<AppLanguage, TranslationTree> = {
       emailNotConfirmed:
         'এই অ্যাকাউন্ট এখনো নিশ্চিত নয়। Supabase-এ "Confirm email" বন্ধ করুন, অথবা টেস্ট ইউজার মুছে আবার সাইন আপ করুন।',
       emailAlreadyRegistered: 'এই ইমেইল ইতিমধ্যে নিবন্ধিত। সাইন ইন চেষ্টা করুন।',
+      invalidApiKey:
+        'এই APK-তে Supabase API key ভুল বা পুরনো। EAS env আপডেটের পর preview APK আবার বিল্ড করুন।',
       weakPassword: 'পাসওয়ার্ড দুর্বল। কমপক্ষে ৬ অক্ষর ব্যবহার করুন।',
       displayName: 'প্রদর্শন নাম',
       displayNamePlaceholder: 'আপনার নাম (ঐচ্ছিক)',

@@ -4,10 +4,15 @@ import { NativeModules, TurboModuleRegistry } from 'react-native';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL?.trim() ?? '';
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY?.trim() ?? '';
+
+/** Prefer new publishable key; fall back to legacy anon JWT during migration. */
+const supabasePublishableKey =
+  process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() ??
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY?.trim() ??
+  '';
 
 export const isSupabaseConfigured =
-  supabaseUrl.length > 0 && supabaseAnonKey.length > 0;
+  supabaseUrl.length > 0 && supabasePublishableKey.length > 0;
 
 type AuthStorage = {
   getItem: (key: string) => Promise<string | null>;
@@ -78,7 +83,7 @@ export function getSupabaseClient(): SupabaseClient | null {
   }
 
   if (!client) {
-    client = createClient(supabaseUrl, supabaseAnonKey, {
+    client = createClient(supabaseUrl, supabasePublishableKey, {
       auth: {
         storage: resolveAuthStorage(),
         autoRefreshToken: true,

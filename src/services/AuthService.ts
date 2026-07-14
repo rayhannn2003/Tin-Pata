@@ -35,6 +35,9 @@ function validateCredentials(email: string, password: string): void {
 function mapAuthError(error: { message?: string; status?: number }): AuthError {
   const message = error.message?.toLowerCase() ?? '';
 
+  if (message.includes('invalid api key') || message.includes('invalid apikey')) {
+    return new AuthError('invalid_api_key');
+  }
   if (message.includes('invalid login credentials') || message.includes('invalid email or password')) {
     return new AuthError('invalid_credentials');
   }
@@ -194,6 +197,8 @@ export function getAuthErrorMessage(
       return t('auth.emailConfirmationRequired');
     case 'email_already_registered':
       return t('auth.emailAlreadyRegistered');
+    case 'invalid_api_key':
+      return t('auth.invalidApiKey');
     case 'weak_password':
       return t('auth.weakPassword');
     case 'network_error':
