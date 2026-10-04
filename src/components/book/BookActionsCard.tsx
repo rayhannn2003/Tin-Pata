@@ -9,6 +9,7 @@ import type { BookStatus } from '@/types';
 
 interface BookActionsCardProps {
   onRename: () => void;
+  onChangeCover: () => void;
   onMarkReading: () => void;
   onMarkPaused: () => void;
   onMarkFinished: () => void;
@@ -18,6 +19,7 @@ interface BookActionsCardProps {
 
 export function BookActionsCard({
   onRename,
+  onChangeCover,
   onMarkReading,
   onMarkPaused,
   onMarkFinished,
@@ -31,6 +33,7 @@ export function BookActionsCard({
       <ThemedText variant="subtitle">{t('bookDetail.actions')}</ThemedText>
       <View style={styles.actions}>
         <Button label={t('library.rename')} onPress={onRename} variant="secondary" />
+        <Button label={t('library.changeCover')} onPress={onChangeCover} variant="secondary" />
         {status !== 'reading' ? (
           <Button
             label={t('library.markReading')}

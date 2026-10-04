@@ -1,3 +1,4 @@
+export { AiSummaryDialog } from '@/components/reader/AiSummaryDialog';
 export { DictionaryPanel } from '@/components/reader/DictionaryPanel';
 export { FullscreenButton } from '@/components/reader/FullscreenButton';
 export { GoToPageDialog } from '@/components/reader/GoToPageDialog';

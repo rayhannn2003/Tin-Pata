@@ -1,0 +1,225 @@
+name: Backend Deploy
+
+# Independent of the web and Android pipelines: only backend/** triggers it, and it
+# only ever touches the tin-pata-api PM2 process and /var/www/tin-pata-api.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-deploy.yml'
+  workflow_dispatch: {}
+
+# Never let two production deploys interleave files on the server.
+concurrency:
+  group: backend-production
+  cancel-in-progress: false
+
+defaults:
+  run:
+    working-directory: backend
+
+jobs:
+  verify:
+    name: Lint, typecheck, test, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      # Ship the compiled output and the manifests needed to install production
+      # dependencies on the server. No node_modules, no .git, no tests, no .env.
+      - name: Package release artifact
+        run: |
+          mkdir -p ../release
+          cp -r dist ../release/
+          cp package.json package-lock.json ecosystem.config.cjs ../release/
+          echo "${{ github.sha }}" > ../release/RELEASE_SHA
+          tar -czf ../backend-release.tar.gz -C ../release .
+          ls -lh ../backend-release.tar.gz
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backend-release
+          path: backend-release.tar.gz
+          retention-days: 7
+
+  deploy:
+    name: Deploy to VPS
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: backend-release
+
+      - name: Start SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
+
+      - name: Trust the host key
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -p "${{ secrets.VPS_PORT || 22 }}" -H "${{ secrets.VPS_HOST }}" \
+            >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Show deployment target
+        run: |
+          echo "Commit:      ${{ github.sha }}"
+          echo "Host:        ${{ secrets.VPS_HOST }}"
+          echo "Deploy path: ${{ secrets.BACKEND_DEPLOY_PATH }}"
+          echo "PM2 process: tin-pata-api"
+
+      # Upload into a brand-new release directory. `current` is untouched until the
+      # release is complete, so a failed upload can never half-replace production.
+      - name: Upload release
+        env:
+          HOST: ${{ secrets.VPS_HOST }}
+          PORT: ${{ secrets.VPS_PORT || 22 }}
+          USER: ${{ secrets.VPS_USER }}
+          BASE: ${{ secrets.BACKEND_DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          RELEASE="$BASE/releases/${{ github.sha }}"
+          ssh -p "$PORT" "$USER@$HOST" "mkdir -p '$RELEASE'"
+          scp -P "$PORT" backend-release.tar.gz "$USER@$HOST:$RELEASE/"
+          ssh -p "$PORT" "$USER@$HOST" "\
+            set -euo pipefail; \
+            cd '$RELEASE'; \
+            tar -xzf backend-release.tar.gz; \
+            rm -f backend-release.tar.gz"
+
+      - name: Install production dependencies
+        env:
+          HOST: ${{ secrets.VPS_HOST }}
+          PORT: ${{ secrets.VPS_PORT || 22 }}
+          USER: ${{ secrets.VPS_USER }}
+          BASE: ${{ secrets.BACKEND_DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          ssh -p "$PORT" "$USER@$HOST" "\
+            set -euo pipefail; \
+            cd '$BASE/releases/${{ github.sha }}'; \
+            npm ci --omit=dev --no-audit --no-fund"
+
+      # The server's .env is never uploaded and never rewritten by CI. It lives in
+      # shared/ and is symlinked in, so secrets survive every deploy.
+      - name: Link shared secrets and switch release
+        env:
+          HOST: ${{ secrets.VPS_HOST }}
+          PORT: ${{ secrets.VPS_PORT || 22 }}
+          USER: ${{ secrets.VPS_USER }}
+          BASE: ${{ secrets.BACKEND_DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          ssh -p "$PORT" "$USER@$HOST" "\
+            set -euo pipefail; \
+            RELEASE='$BASE/releases/${{ github.sha }}'; \
+            test -f '$BASE/shared/.env' || { echo 'FATAL: $BASE/shared/.env is missing'; exit 1; }; \
+            ln -sfn '$BASE/shared/.env' \"\$RELEASE/.env\"; \
+            if [ -L '$BASE/current' ]; then readlink -f '$BASE/current' > '$BASE/PREVIOUS_RELEASE'; fi; \
+            ln -sfn \"\$RELEASE\" '$BASE/current'; \
+            echo \"current -> \$(readlink -f '$BASE/current')\""
+
+      - name: Reload PM2
+        env:
+          HOST: ${{ secrets.VPS_HOST }}
+          PORT: ${{ secrets.VPS_PORT || 22 }}
+          USER: ${{ secrets.VPS_USER }}
+          BASE: ${{ secrets.BACKEND_DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          # Only tin-pata-api is touched. Other PM2 apps on this box are untouched.
+          ssh -p "$PORT" "$USER@$HOST" "\
+            set -euo pipefail; \
+            export APP_VERSION='${{ github.sha }}'; \
+            if pm2 describe tin-pata-api > /dev/null 2>&1; then \
+              pm2 reload tin-pata-api --update-env; \
+            else \
+              pm2 start '$BASE/current/ecosystem.config.cjs'; \
+            fi; \
+            pm2 save"
+
+      - name: Health check
+        env:
+          URL: ${{ secrets.BACKEND_HEALTH_URL }}
+        run: |
+          set -uo pipefail
+          for attempt in 1 2 3 4 5; do
+            echo "Health attempt $attempt/5 -> $URL"
+            if curl -fsS --max-time 10 "$URL" -o health.json; then
+              cat health.json; echo
+              echo "Backend healthy."
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::Backend health check failed after 5 attempts."
+          exit 1
+
+      # Only runs when something above failed. Puts `current` back and reloads, so a
+      # bad release never stays live.
+      - name: Roll back on failure
+        if: failure()
+        env:
+          HOST: ${{ secrets.VPS_HOST }}
+          PORT: ${{ secrets.VPS_PORT || 22 }}
+          USER: ${{ secrets.VPS_USER }}
+          BASE: ${{ secrets.BACKEND_DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          ssh -p "$PORT" "$USER@$HOST" "\
+            set -euo pipefail; \
+            if [ -f '$BASE/PREVIOUS_RELEASE' ]; then \
+              PREV=\$(cat '$BASE/PREVIOUS_RELEASE'); \
+              if [ -d \"\$PREV\" ]; then \
+                ln -sfn \"\$PREV\" '$BASE/current'; \
+                pm2 reload tin-pata-api --update-env || true; \
+                echo \"Rolled back to \$PREV\"; \
+              else \
+                echo 'Previous release directory is gone; manual intervention needed.'; \
+              fi; \
+            else \
+              echo 'No previous release recorded; nothing to roll back to.'; \
+            fi"
+
+      - name: Prune old releases
+        if: success()
+        env:
+          HOST: ${{ secrets.VPS_HOST }}
+          PORT: ${{ secrets.VPS_PORT || 22 }}
+          USER: ${{ secrets.VPS_USER }}
+          BASE: ${{ secrets.BACKEND_DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          # Keep the 5 newest releases; never delete whatever `current` points at.
+          ssh -p "$PORT" "$USER@$HOST" "\
+            set -euo pipefail; \
+            CURRENT=\$(readlink -f '$BASE/current'); \
+            cd '$BASE/releases'; \
+            ls -1dt */ 2>/dev/null | tail -n +6 | while read -r dir; do \
+              full=\$(readlink -f \"\$dir\"); \
+              if [ \"\$full\" != \"\$CURRENT\" ]; then rm -rf \"\$full\"; echo \"pruned \$dir\"; fi; \
+            done; \
+            echo 'Remaining:'; ls -1dt */ | head -5 || true"

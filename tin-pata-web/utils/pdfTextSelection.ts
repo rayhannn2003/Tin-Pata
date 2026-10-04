@@ -1,8 +1,19 @@
+import { normalizeSelectedText } from '@/services/AIService';
 import { DictionaryService } from '@/services/DictionaryService';
 
 export type PdfSelectedWord = {
   word: string;
   pageNumber: number;
+};
+
+/** A multi-word selection from the text layer, ready for AI explanation. */
+export type PdfSelectedPassage = {
+  /** Whitespace-normalized, de-hyphenated passage text. */
+  text: string;
+  /** Page the selection starts on. A selection may run onto the next page. */
+  pageNumber: number;
+  /** Viewport rect of the selection, for anchoring a contextual action. */
+  rect: { top: number; bottom: number; left: number; right: number };
 };
 
 const WORD_CHAR = /[\p{L}\p{N}'’]/u;
@@ -297,4 +308,57 @@ export function selectionWordInContainer(
     return null;
   }
   return { word, pageNumber: pageA };
+}
+
+/**
+ * The current drag-selection as an explainable passage.
+ *
+ * Unlike {@link selectionWordInContainer} this keeps the whole selection and allows it
+ * to span pages — the reader explains paragraphs, which often break across a page edge.
+ */
+export function selectionPassageInContainer(
+  container: HTMLElement,
+): PdfSelectedPassage | null {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+    return null;
+  }
+
+  const anchor = sel.anchorNode;
+  const focus = sel.focusNode;
+  if (!anchor || !container.contains(anchor)) {
+    return null;
+  }
+  if (focus && !container.contains(focus)) {
+    return null;
+  }
+
+  const text = normalizeSelectedText(sel.toString());
+  if (!text) {
+    return null;
+  }
+
+  const pageNumber =
+    pageNumberFromNode(anchor) ?? (focus ? pageNumberFromNode(focus) : null);
+  if (pageNumber == null) {
+    return null;
+  }
+
+  const range = sel.getRangeAt(0);
+  let box = range.getBoundingClientRect();
+  if (box.width === 0 && box.height === 0) {
+    // Collapsed bounding box (selection ends on a line break) — use the last line.
+    const rects = range.getClientRects();
+    const last = rects[rects.length - 1];
+    if (!last) {
+      return null;
+    }
+    box = last;
+  }
+
+  return {
+    text,
+    pageNumber,
+    rect: { top: box.top, bottom: box.bottom, left: box.left, right: box.right },
+  };
 }

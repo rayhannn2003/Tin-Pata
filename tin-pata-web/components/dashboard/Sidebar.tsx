@@ -23,10 +23,20 @@ export function Sidebar({ onNavigate, className = '' }: SidebarProps) {
         <Link
           href={ROUTES.dashboard}
           onClick={onNavigate}
-          className="block outline-none focus-visible:ring-2 focus-visible:ring-tint/40"
+          className="flex items-center gap-3 outline-none focus-visible:ring-2 focus-visible:ring-tint/40"
         >
-          <p className="text-lg font-semibold text-tint">{brand.nameBn}</p>
-          <p className="text-xs text-muted">{brand.nameEn}</p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo-icon.png"
+            alt=""
+            width={40}
+            height={40}
+            className="h-10 w-10 rounded-lg"
+          />
+          <span>
+            <p className="text-lg font-semibold text-tint">{brand.nameBn}</p>
+            <p className="text-xs text-muted">{brand.nameEn}</p>
+          </span>
         </Link>
       </div>
 

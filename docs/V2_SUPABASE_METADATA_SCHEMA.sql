@@ -77,6 +77,7 @@ create table if not exists public.books (
   pdf_uploaded_at timestamptz,
   pdf_cloud_available boolean not null default false,
   pdf_cloud_deleted_at timestamptz,
+  cover_image_path text,
   created_at timestamptz not null,
   updated_at timestamptz not null,
   deleted_at timestamptz

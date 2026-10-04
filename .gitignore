@@ -21,6 +21,14 @@ ios/
 *.p12
 *.key
 *.mobileprovision
+# SSH / deploy keys — never commit. `my_vps_key` sits in this working tree.
+my_vps_key
+my_vps_key.pub
+*_rsa
+*_ed25519
+id_rsa*
+id_ed25519*
+
 
 # Metro
 .metro-health-check*

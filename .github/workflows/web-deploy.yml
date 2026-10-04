@@ -1,0 +1,230 @@
+name: Web Deploy
+
+# Independent of the backend and Android pipelines: only tin-pata-web/** triggers it,
+# and it only ever touches the tin-pata-web PM2 process.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tin-pata-web/**'
+      - '.github/workflows/web-deploy.yml'
+  workflow_dispatch: {}
+
+concurrency:
+  group: web-production
+  cancel-in-progress: false
+
+defaults:
+  run:
+    working-directory: tin-pata-web
+
+jobs:
+  verify:
+    name: Lint, typecheck, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: tin-pata-web/package-lock.json
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # NEXT_PUBLIC_* values are inlined into the client bundle at build time, so they
+      # must be present here — and must only ever be non-secret values.
+      # OPENAI_API_KEY is deliberately absent: it lives only in the backend's .env.
+      - name: Build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+          NODE_ENV: production
+        run: npm run build
+
+      # Guard rail: fail loudly if a server-only secret ever reaches the client bundle.
+      - name: Assert no secrets in client bundle
+        run: |
+          set -euo pipefail
+          if grep -rIlE 'OPENAI_API_KEY|sk-proj-|SUPABASE_SERVICE_ROLE' .next/static 2>/dev/null | head -1 | grep -q .; then
+            echo "::error::A server-only secret appears in the client bundle."
+            exit 1
+          fi
+          echo "Client bundle contains no server-only secrets."
+
+      # Next.js needs .next, public, and the manifests. node_modules is installed on
+      # the server instead of shipped; .git, docs and source are not deployed.
+      - name: Package release artifact
+        run: |
+          set -euo pipefail
+          mkdir -p ../release
+          cp -r .next ../release/
+          cp -r public ../release/ 2>/dev/null || true
+          cp package.json package-lock.json next.config.ts ../release/
+          cp ecosystem.config.cjs ../release/ 2>/dev/null || true
+          echo "${{ github.sha }}" > ../release/RELEASE_SHA
+          tar -czf ../web-release.tar.gz -C ../release .
+          ls -lh ../web-release.tar.gz
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-release
+          path: web-release.tar.gz
+          retention-days: 7
+
+  deploy:
+    name: Deploy to VPS
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-release
+
+      - name: Start SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
+
+      - name: Trust the host key
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -p "${{ secrets.VPS_PORT || 22 }}" -H "${{ secrets.VPS_HOST }}" \
+            >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Show deployment target
+        run: |
+          echo "Commit:      ${{ github.sha }}"
+          echo "Host:        ${{ secrets.VPS_HOST }}"
+          echo "Deploy path: ${{ secrets.WEB_DEPLOY_PATH }}"
+          echo "PM2 process: tin-pata-web"
+
+      - name: Upload release
+        env:
+          HOST: ${{ secrets.VPS_HOST }}
+          PORT: ${{ secrets.VPS_PORT || 22 }}
+          USER: ${{ secrets.VPS_USER }}
+          BASE: ${{ secrets.WEB_DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          RELEASE="$BASE/releases/${{ github.sha }}"
+          ssh -p "$PORT" "$USER@$HOST" "mkdir -p '$RELEASE'"
+          scp -P "$PORT" web-release.tar.gz "$USER@$HOST:$RELEASE/"
+          ssh -p "$PORT" "$USER@$HOST" "\
+            set -euo pipefail; \
+            cd '$RELEASE'; \
+            tar -xzf web-release.tar.gz; \
+            rm -f web-release.tar.gz"
+
+      - name: Install production dependencies
+        env:
+          HOST: ${{ secrets.VPS_HOST }}
+          PORT: ${{ secrets.VPS_PORT || 22 }}
+          USER: ${{ secrets.VPS_USER }}
+          BASE: ${{ secrets.WEB_DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          ssh -p "$PORT" "$USER@$HOST" "\
+            set -euo pipefail; \
+            cd '$BASE/releases/${{ github.sha }}'; \
+            npm ci --omit=dev --no-audit --no-fund"
+
+      - name: Link shared env and switch release
+        env:
+          HOST: ${{ secrets.VPS_HOST }}
+          PORT: ${{ secrets.VPS_PORT || 22 }}
+          USER: ${{ secrets.VPS_USER }}
+          BASE: ${{ secrets.WEB_DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          ssh -p "$PORT" "$USER@$HOST" "\
+            set -euo pipefail; \
+            RELEASE='$BASE/releases/${{ github.sha }}'; \
+            if [ -f '$BASE/shared/.env.production' ]; then \
+              ln -sfn '$BASE/shared/.env.production' \"\$RELEASE/.env.production\"; \
+            fi; \
+            if [ -L '$BASE/current' ]; then readlink -f '$BASE/current' > '$BASE/PREVIOUS_RELEASE'; fi; \
+            ln -sfn \"\$RELEASE\" '$BASE/current'; \
+            echo \"current -> \$(readlink -f '$BASE/current')\""
+
+      - name: Reload PM2
+        env:
+          HOST: ${{ secrets.VPS_HOST }}
+          PORT: ${{ secrets.VPS_PORT || 22 }}
+          USER: ${{ secrets.VPS_USER }}
+        run: |
+          set -euo pipefail
+          # Only tin-pata-web is touched. Other PM2 apps on this box are untouched.
+          ssh -p "$PORT" "$USER@$HOST" "\
+            set -euo pipefail; \
+            pm2 reload tin-pata-web --update-env; \
+            pm2 save"
+
+      - name: Health check
+        env:
+          URL: ${{ secrets.WEB_HEALTH_URL }}
+        run: |
+          set -uo pipefail
+          for attempt in 1 2 3 4 5; do
+            echo "Health attempt $attempt/5 -> $URL"
+            if curl -fsS --max-time 15 -o /dev/null -w '%{http_code}\n' "$URL"; then
+              echo "Web healthy."
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::Web health check failed after 5 attempts."
+          exit 1
+
+      - name: Roll back on failure
+        if: failure()
+        env:
+          HOST: ${{ secrets.VPS_HOST }}
+          PORT: ${{ secrets.VPS_PORT || 22 }}
+          USER: ${{ secrets.VPS_USER }}
+          BASE: ${{ secrets.WEB_DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          ssh -p "$PORT" "$USER@$HOST" "\
+            set -euo pipefail; \
+            if [ -f '$BASE/PREVIOUS_RELEASE' ]; then \
+              PREV=\$(cat '$BASE/PREVIOUS_RELEASE'); \
+              if [ -d \"\$PREV\" ]; then \
+                ln -sfn \"\$PREV\" '$BASE/current'; \
+                pm2 reload tin-pata-web --update-env || true; \
+                echo \"Rolled back to \$PREV\"; \
+              else \
+                echo 'Previous release directory is gone; manual intervention needed.'; \
+              fi; \
+            else \
+              echo 'No previous release recorded; nothing to roll back to.'; \
+            fi"
+
+      - name: Prune old releases
+        if: success()
+        env:
+          HOST: ${{ secrets.VPS_HOST }}
+          PORT: ${{ secrets.VPS_PORT || 22 }}
+          USER: ${{ secrets.VPS_USER }}
+          BASE: ${{ secrets.WEB_DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          ssh -p "$PORT" "$USER@$HOST" "\
+            set -euo pipefail; \
+            CURRENT=\$(readlink -f '$BASE/current'); \
+            cd '$BASE/releases'; \
+            ls -1dt */ 2>/dev/null | tail -n +6 | while read -r dir; do \
+              full=\$(readlink -f \"\$dir\"); \
+              if [ \"\$full\" != \"\$CURRENT\" ]; then rm -rf \"\$full\"; echo \"pruned \$dir\"; fi; \
+            done; \
+            echo 'Remaining:'; ls -1dt */ | head -5 || true"

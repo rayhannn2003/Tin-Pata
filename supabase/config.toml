@@ -1,0 +1,12 @@
+# Supabase CLI project config (Tin Pata).
+# Only what the AI gateway needs — extend with `supabase init` output if local
+# database/auth emulation is added later.
+
+project_id = "tin-pata"
+
+[functions.ai-reading-assistant]
+enabled = true
+# Supabase verifies the caller's JWT at the edge; the function verifies the user again
+# against auth/v1/user so an anon/publishable key can never pass as a signed-in user.
+verify_jwt = true
+entrypoint = "./functions/ai-reading-assistant/index.ts"

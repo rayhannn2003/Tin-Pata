@@ -184,13 +184,6 @@ function PdfPageInner({
     };
   }, [hasText, pageNumber, checkpointDrawMode]);
 
-  useEffect(() => {
-    if (!checkpointDrawMode) {
-      setDraft(null);
-      drawingRef.current = false;
-    }
-  }, [checkpointDrawMode]);
-
   function localPoint(event: React.PointerEvent) {
     const rect = pageRef.current?.getBoundingClientRect();
     if (!rect || rect.width <= 0 || rect.height <= 0) return null;
@@ -307,7 +300,7 @@ function PdfPageInner({
         );
       })}
 
-      {draft ? (
+      {checkpointDrawMode && draft ? (
         <div
           className="pdf-checkpoint pdf-checkpoint--draft"
           style={{

@@ -1,12 +1,14 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 
 import { BookActionsMenu } from '@/components/library/BookActionsMenu';
 import { BookCategoryBadge } from '@/components/library/BookCategoryBadge';
 import { BookPriorityBadge } from '@/components/library/BookPriorityBadge';
 import { BookProgress } from '@/components/library/BookProgress';
 import { BookStatusBadge } from '@/components/library/BookStatusBadge';
+import { CoverStorageService } from '@/services/CoverStorageService';
 import type { Book } from '@/types/book';
 import { ROUTES } from '@/utils/constants';
 import { formatRelativeTime } from '@/utils/date';
@@ -18,18 +20,28 @@ interface BookCardProps {
 
 export function BookCard({ book, layout = 'grid' }: BookCardProps) {
   const lastRead = book.lastReadAt ? formatRelativeTime(book.lastReadAt) : 'Never';
+  const hasCover = Boolean(book.coverImagePath);
 
   if (layout === 'list') {
     return (
       <article className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-4 shadow-sm sm:flex-row sm:items-stretch">
-        <CoverPlaceholder title={book.title} className="h-28 w-20 shrink-0 sm:h-auto sm:min-h-[7rem]" />
+        <BookCover
+          title={book.title}
+          coverImagePath={book.coverImagePath}
+          className="h-28 w-20 shrink-0 sm:h-auto sm:min-h-[7rem]"
+        />
         <div className="min-w-0 flex-1 space-y-3">
           <header className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h3 className="truncate text-base font-semibold text-foreground">{book.title}</h3>
               {book.author ? <p className="truncate text-sm text-muted">{book.author}</p> : null}
             </div>
-            <BookActionsMenu bookId={book.id} title={book.title} status={book.status} />
+            <BookActionsMenu
+              bookId={book.id}
+              title={book.title}
+              status={book.status}
+              hasCover={hasCover}
+            />
           </header>
           <div className="flex flex-wrap gap-2">
             <BookCategoryBadge category={book.category} />
@@ -47,8 +59,17 @@ export function BookCard({ book, layout = 'grid' }: BookCardProps) {
   return (
     <article className="flex h-full flex-col rounded-xl border border-border bg-surface p-4 shadow-sm">
       <div className="mb-3 flex items-start justify-between gap-2">
-        <CoverPlaceholder title={book.title} className="h-36 w-full" />
-        <BookActionsMenu bookId={book.id} title={book.title} status={book.status} />
+        <BookCover
+          title={book.title}
+          coverImagePath={book.coverImagePath}
+          className="h-36 w-full"
+        />
+        <BookActionsMenu
+          bookId={book.id}
+          title={book.title}
+          status={book.status}
+          hasCover={hasCover}
+        />
       </div>
       <h3 className="line-clamp-2 text-base font-semibold text-foreground">{book.title}</h3>
       {book.author ? <p className="mt-1 line-clamp-1 text-sm text-muted">{book.author}</p> : null}
@@ -68,14 +89,45 @@ export function BookCard({ book, layout = 'grid' }: BookCardProps) {
   );
 }
 
-function CoverPlaceholder({ title, className = '' }: { title: string; className?: string }) {
+function BookCover({
+  title,
+  coverImagePath,
+  className = '',
+}: {
+  title: string;
+  coverImagePath: string | null;
+  className?: string;
+}) {
+  const [signedUrl, setSignedUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!coverImagePath) {
+      return;
+    }
+    void CoverStorageService.createSignedUrl(coverImagePath).then((signed) => {
+      if (!cancelled) setSignedUrl(signed);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [coverImagePath]);
+
+  // Derived, not cleared in the effect: with no path there is no cover to show.
+  const url = coverImagePath ? signedUrl : null;
+
   const initial = title.trim().charAt(0).toUpperCase() || 'B';
   return (
     <div
-      className={`flex items-center justify-center rounded-lg bg-gradient-to-br from-tint-muted to-border/40 text-2xl font-semibold text-tint ${className}`}
+      className={`relative flex items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-tint-muted to-border/40 text-2xl font-semibold text-tint ${className}`}
       aria-hidden
     >
-      {initial}
+      {url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={url} alt="" className="absolute inset-0 h-full w-full object-cover" />
+      ) : (
+        initial
+      )}
     </div>
   );
 }

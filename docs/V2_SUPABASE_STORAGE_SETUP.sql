@@ -73,3 +73,4 @@ alter table public.books add column if not exists pdf_sha256 text;
 alter table public.books add column if not exists pdf_uploaded_at timestamptz;
 alter table public.books add column if not exists pdf_cloud_available boolean not null default false;
 alter table public.books add column if not exists pdf_cloud_deleted_at timestamptz;
+alter table public.books add column if not exists cover_image_path text;

@@ -24,6 +24,7 @@ interface BookRow {
   pdf_file_name: string | null;
   pdf_file_size: number | null;
   pdf_cloud_available: boolean;
+  cover_image_path: string | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -48,6 +49,7 @@ function mapBook(
     pdfFileSize: row.pdf_file_size,
     cloudStoragePath: row.cloud_storage_path,
     pdfCloudAvailable: Boolean(row.pdf_cloud_available),
+    coverImagePath: row.cover_image_path ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at,
@@ -82,7 +84,7 @@ export const BookService = {
     const { data: books, error } = await client
       .from('books')
       .select(
-        'id, user_id, title, author, total_pages, current_page, current_page_updated_at, status, category, priority, cloud_storage_path, pdf_file_name, pdf_file_size, pdf_cloud_available, created_at, updated_at, deleted_at',
+        'id, user_id, title, author, total_pages, current_page, current_page_updated_at, status, category, priority, cloud_storage_path, pdf_file_name, pdf_file_size, pdf_cloud_available, cover_image_path, created_at, updated_at, deleted_at',
       )
       .eq('user_id', userId)
       .is('deleted_at', null)
@@ -140,7 +142,7 @@ export const BookService = {
     const { data, error } = await client
       .from('books')
       .select(
-        'id, user_id, title, author, total_pages, current_page, current_page_updated_at, status, category, priority, cloud_storage_path, pdf_file_name, pdf_file_size, pdf_cloud_available, created_at, updated_at, deleted_at',
+        'id, user_id, title, author, total_pages, current_page, current_page_updated_at, status, category, priority, cloud_storage_path, pdf_file_name, pdf_file_size, pdf_cloud_available, cover_image_path, created_at, updated_at, deleted_at',
       )
       .eq('user_id', userId)
       .eq('id', bookId)

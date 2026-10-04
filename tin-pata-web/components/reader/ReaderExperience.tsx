@@ -4,6 +4,8 @@ import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 
+import { ExplanationPanel } from '@/components/ai/ExplanationPanel';
+import { AiSummaryDialog } from '@/components/reader/AiSummaryDialog';
 import { DictionaryPanel } from '@/components/reader/DictionaryPanel';
 import { GoToPageDialog } from '@/components/reader/GoToPageDialog';
 import { NoteEditorDialog } from '@/components/reader/NoteEditorDialog';
@@ -20,6 +22,8 @@ import { CheckpointService } from '@/services/CheckpointService';
 import { PdfStorageService } from '@/services/PdfStorageService';
 import { ReaderSyncService } from '@/services/ReaderSyncService';
 import { UserSettingsService } from '@/services/UserSettingsService';
+import type { AIPreferences } from '@/types/ai';
+import { DEFAULT_AI_PREFERENCES } from '@/types/ai';
 import type { Book } from '@/types/book';
 import type { Bookmark } from '@/types/bookmark';
 import type { ReaderCheckpoint } from '@/types/checkpoint';
@@ -67,11 +71,17 @@ export function ReaderExperience({ book }: ReaderExperienceProps) {
   const [checkpointDrawMode, setCheckpointDrawMode] = useState(false);
   const [goToOpen, setGoToOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
   const [dictionaryOpen, setDictionaryOpen] = useState(false);
   const [dictionaryWord, setDictionaryWord] = useState('');
   const [dictionaryPrefs, setDictionaryPrefs] = useState<DictionaryPreferences>(
     DEFAULT_DICTIONARY_PREFERENCES,
   );
+  const [aiPrefs, setAiPrefs] = useState<AIPreferences>(DEFAULT_AI_PREFERENCES);
+  const [explainPassage, setExplainPassage] = useState<{
+    text: string;
+    pageNumber: number;
+  } | null>(null);
   const [noteEditorOpen, setNoteEditorOpen] = useState(false);
   const [noteInitialText, setNoteInitialText] = useState('');
   const [editingNote, setEditingNote] = useState<Note | null>(null);
@@ -171,7 +181,8 @@ export function ReaderExperience({ book }: ReaderExperienceProps) {
     void Promise.all([
       UserSettingsService.loadReaderPreferences(),
       UserSettingsService.loadDictionaryPreferences(),
-    ]).then(([prefs, dictPrefs]) => {
+      UserSettingsService.loadAiPreferences(),
+    ]).then(([prefs, dictPrefs, aiPreferences]) => {
       if (cancelled) return;
       setZoomMode(prefs.zoomMode);
       setZoomScale(prefs.zoomScale);
@@ -179,6 +190,7 @@ export function ReaderExperience({ book }: ReaderExperienceProps) {
       setRightOpen(prefs.rightSidebarOpen);
       setTheme(prefs.theme);
       setDictionaryPrefs(dictPrefs);
+      setAiPrefs(aiPreferences);
       setPrefsReady(true);
     });
     return () => {
@@ -261,7 +273,9 @@ export function ReaderExperience({ book }: ReaderExperienceProps) {
     void ReaderSyncService.listNotes(book.id).then((rows) => {
       if (!cancelled) setNotes(rows);
     });
-    setCheckpoints(CheckpointService.list(book.id));
+    void Promise.resolve(CheckpointService.list(book.id)).then((rows) => {
+      if (!cancelled) setCheckpoints(rows);
+    });
 
     return () => {
       cancelled = true;
@@ -384,10 +398,11 @@ export function ReaderExperience({ book }: ReaderExperienceProps) {
       setCheckpointDrawMode(false);
       setCurrentPage(created.pageNumber);
       if (!leftOpen) {
-        setLeftSidebar(true);
+        setLeftOpen(true);
+        persistPrefs({ leftSidebarOpen: true });
       }
     },
-    [book.id, leftOpen],
+    [book.id, leftOpen, persistPrefs],
   );
 
   const deleteCheckpoint = useCallback(
@@ -397,6 +412,33 @@ export function ReaderExperience({ book }: ReaderExperienceProps) {
     },
     [book.id],
   );
+
+  const updateAiPref = useCallback(
+    <K extends keyof AIPreferences>(key: K, value: AIPreferences[K]) => {
+      setAiPrefs((prev) => {
+        const next = { ...prev, [key]: value };
+        void UserSettingsService.saveAiPreferences({ [key]: value });
+        return next;
+      });
+    },
+    [],
+  );
+
+  const openExplanation = useCallback(
+    (passage: { text: string; pageNumber: number }) => {
+      if (!passage.text.trim()) return;
+      if (passage.pageNumber >= 1) {
+        setCurrentPage(passage.pageNumber);
+        pageRef.current = passage.pageNumber;
+      }
+      setExplainPassage(passage);
+    },
+    [],
+  );
+
+  const closeExplanation = useCallback(() => {
+    setExplainPassage(null);
+  }, []);
 
   const updateDictionaryPref = useCallback(
     <K extends keyof DictionaryPreferences>(key: K, value: DictionaryPreferences[K]) => {
@@ -543,6 +585,9 @@ export function ReaderExperience({ book }: ReaderExperienceProps) {
       } else if (event.key === 'd' || event.key === 'D') {
         event.preventDefault();
         openDictionary();
+      } else if (event.key === 's' || event.key === 'S') {
+        event.preventDefault();
+        setSummaryOpen(true);
       } else if (event.key === 'c' || event.key === 'C') {
         event.preventDefault();
         toggleCheckpointDrawMode();
@@ -654,6 +699,7 @@ export function ReaderExperience({ book }: ReaderExperienceProps) {
         onOpenGoToPage={() => setGoToOpen(true)}
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenDictionary={() => openDictionary()}
+        onOpenSummary={() => setSummaryOpen(true)}
         onNewNote={() => openNewNote()}
         onToggleCheckpointMode={toggleCheckpointDrawMode}
         checkpointDrawMode={checkpointDrawMode}
@@ -686,6 +732,7 @@ export function ReaderExperience({ book }: ReaderExperienceProps) {
               scrollToPageRequest={scrollRequest}
               onScrollToPageHandled={() => setScrollRequest(null)}
               onWordSelect={handleWordSelect}
+              onExplainSelection={openExplanation}
               dictionaryOpen={dictionaryOpen}
               onCloseDictionary={closeDictionary}
               openOnDoubleClick={dictionaryPrefs.openOnDoubleClick}
@@ -778,6 +825,31 @@ export function ReaderExperience({ book }: ReaderExperienceProps) {
           openNewNote(text);
         }}
       />
+      {pdf ? (
+        <AiSummaryDialog
+          open={summaryOpen}
+          pdf={pdf}
+          bookId={book.id}
+          currentPage={currentPage}
+          pageCount={pageCount}
+          onClose={() => setSummaryOpen(false)}
+          onSaveAsNote={(text, targetPage) => {
+            setSummaryOpen(false);
+            jumpToPage(targetPage);
+            openNewNote(text);
+          }}
+        />
+      ) : null}
+      <ExplanationPanel
+        open={explainPassage != null}
+        selectedText={explainPassage?.text ?? ''}
+        pageNumber={explainPassage?.pageNumber ?? currentPage}
+        bookId={book.id}
+        bookTitle={book.title}
+        defaultMode={aiPrefs.defaultExplanationMode}
+        onModeChange={(mode) => updateAiPref('defaultExplanationMode', mode)}
+        onClose={closeExplanation}
+      />
       <NoteEditorDialog
         open={noteEditorOpen}
         pageNumber={editingNote?.pageNumber ?? currentPage}
@@ -797,6 +869,7 @@ export function ReaderExperience({ book }: ReaderExperienceProps) {
         leftOpen={leftOpen}
         rightOpen={rightOpen}
         dictionaryPrefs={dictionaryPrefs}
+        aiPrefs={aiPrefs}
         onClose={() => setSettingsOpen(false)}
         onThemeChange={(value) => {
           setTheme(value);
@@ -805,6 +878,7 @@ export function ReaderExperience({ book }: ReaderExperienceProps) {
         onToggleLeft={toggleLeft}
         onToggleRight={toggleRight}
         onDictionaryPrefChange={updateDictionaryPref}
+        onAiPrefChange={updateAiPref}
       />
     </div>
   );

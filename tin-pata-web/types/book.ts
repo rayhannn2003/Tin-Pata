@@ -48,6 +48,8 @@ export interface Book {
   pdfFileSize: number | null;
   cloudStoragePath: string | null;
   pdfCloudAvailable: boolean;
+  /** Supabase Storage path in `user-covers`, e.g. `{userId}/books/{bookId}/cover.jpg` */
+  coverImagePath: string | null;
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;

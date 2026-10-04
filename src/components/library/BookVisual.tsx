@@ -1,7 +1,9 @@
-import { StyleSheet, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Image, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/ui/ThemedText';
 import { useThemeColors } from '@/hooks/useColorScheme';
+import { CoverCloudStorageService } from '@/services/CoverCloudStorageService';
 
 const GRADIENTS: [string, string][] = [
   ['#5B8A72', '#7BA892'],
@@ -33,15 +35,31 @@ function getInitials(title: string): string {
 
 interface BookVisualProps {
   title: string;
+  coverImagePath?: string | null;
   size?: 'sm' | 'md' | 'lg';
 }
 
-export function BookVisual({ title, size = 'md' }: BookVisualProps) {
+export function BookVisual({ title, coverImagePath, size = 'md' }: BookVisualProps) {
   const colors = useThemeColors();
   const [start, end] = GRADIENTS[hashTitle(title) % GRADIENTS.length];
   const initials = getInitials(title);
   const dimension = size === 'lg' ? 72 : size === 'sm' ? 44 : 56;
   const fontSize = size === 'lg' ? 24 : size === 'sm' ? 14 : 18;
+  const [coverUrl, setCoverUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!coverImagePath) {
+      setCoverUrl(null);
+      return;
+    }
+    void CoverCloudStorageService.getSignedCoverUrl(coverImagePath).then((url) => {
+      if (!cancelled) setCoverUrl(url);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [coverImagePath]);
 
   return (
     <View
@@ -56,8 +74,16 @@ export function BookVisual({ title, size = 'md' }: BookVisualProps) {
         },
       ]}
     >
-      <View style={[styles.inner, { backgroundColor: end, opacity: 0.35 }]} />
-      <ThemedText style={[styles.initials, { fontSize, color: '#FFFFFF' }]}>{initials}</ThemedText>
+      {coverUrl ? (
+        <Image source={{ uri: coverUrl }} style={StyleSheet.absoluteFillObject} />
+      ) : (
+        <>
+          <View style={[styles.inner, { backgroundColor: end, opacity: 0.35 }]} />
+          <ThemedText style={[styles.initials, { fontSize, color: '#FFFFFF' }]}>
+            {initials}
+          </ThemedText>
+        </>
+      )}
     </View>
   );
 }

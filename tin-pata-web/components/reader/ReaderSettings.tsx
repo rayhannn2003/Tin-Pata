@@ -2,6 +2,8 @@
 
 import { useEffect, useId } from 'react';
 
+import type { AIPreferences } from '@/types/ai';
+import { EXPLANATION_MODE_OPTIONS } from '@/types/ai';
 import type { DictionaryMode, DictionaryPreferences } from '@/types/dictionary';
 import type { ReaderZoomMode } from '@/types/reader';
 
@@ -12,6 +14,7 @@ interface ReaderSettingsProps {
   leftOpen: boolean;
   rightOpen: boolean;
   dictionaryPrefs: DictionaryPreferences;
+  aiPrefs: AIPreferences;
   onClose: () => void;
   onThemeChange: (theme: 'light' | 'dark' | 'system') => void;
   onToggleLeft: () => void;
@@ -20,6 +23,7 @@ interface ReaderSettingsProps {
     key: K,
     value: DictionaryPreferences[K],
   ) => void;
+  onAiPrefChange: <K extends keyof AIPreferences>(key: K, value: AIPreferences[K]) => void;
 }
 
 export function ReaderSettings({
@@ -29,11 +33,13 @@ export function ReaderSettings({
   leftOpen,
   rightOpen,
   dictionaryPrefs,
+  aiPrefs,
   onClose,
   onThemeChange,
   onToggleLeft,
   onToggleRight,
   onDictionaryPrefChange,
+  onAiPrefChange,
 }: ReaderSettingsProps) {
   const titleId = useId();
 
@@ -144,9 +150,38 @@ export function ReaderSettings({
           </label>
         </div>
 
+        <div className="mt-4 space-y-3 border-t border-border pt-4 text-sm">
+          <p className="text-xs font-medium text-muted">Tin Pata AI</p>
+          <p className="text-xs text-muted">
+            Explanation style used when you select text and choose Explain. Independent of
+            the app language — English interface, Bangla explanations is fine.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {EXPLANATION_MODE_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                title={option.hint}
+                aria-pressed={aiPrefs.defaultExplanationMode === option.value}
+                onClick={() => onAiPrefChange('defaultExplanationMode', option.value)}
+                className={`rounded-md px-3 py-1.5 text-sm ${
+                  aiPrefs.defaultExplanationMode === option.value
+                    ? 'bg-tint text-white'
+                    : 'border border-border hover:bg-tint-muted'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-muted">
+            Only the selected text is sent for explanation.
+          </p>
+        </div>
+
         <p className="mt-4 border-t border-border pt-3 text-xs text-muted">
-          Shortcuts: ←/→ page · B bookmark · N note · D dictionary · C checkpoint · double-click
-          word · select + right-click · F fullscreen · H focus · Esc
+          Shortcuts: ←/→ page · B bookmark · N note · D dictionary · S AI summary · C checkpoint
+          · double-click word · select + right-click · F fullscreen · H focus · Esc
         </p>
 
         <div className="mt-4 flex justify-end">

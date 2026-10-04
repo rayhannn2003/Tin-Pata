@@ -27,6 +27,7 @@ npm run dev
 - [WEB_ARCHITECTURE.md](docs/WEB_ARCHITECTURE.md)
 - [WEB_SETUP.md](docs/WEB_SETUP.md)
 - [WEB_ROUTES.md](docs/WEB_ROUTES.md)
+- [WEB_READER.md](docs/WEB_READER.md)
 
 ## Phase scope
 

@@ -20,6 +20,8 @@ import { emptySyncMetadata } from '@/utils/syncMetadata';
 import { emptyPdfCloudFields } from '@/utils/pdfCloudStatus';
 import { titleFromFileName } from '@/utils/format';
 import { SyncEnqueueService } from '@/services/SyncEnqueueService';
+import { AuthService } from '@/services/AuthService';
+import { isSupabaseAuthReady } from '@/lib/supabase';
 
 export interface BookRelinkResult {
   book: Book;
@@ -80,6 +82,19 @@ export const BookService = {
 
       await BookRepository.createBook(book);
       void SyncEnqueueService.onBookChanged(book.id);
+
+      // Auto backup PDF to cloud when signed in so web can open the same book.
+      try {
+        const user = await AuthService.getCurrentUser();
+        if (user && isSupabaseAuthReady()) {
+          const { PdfCloudStorageService } = await import('@/services/PdfCloudStorageService');
+          await PdfCloudStorageService.uploadPdfForBook(bookId);
+          return (await BookRepository.getBookById(bookId)) ?? book;
+        }
+      } catch {
+        // Local import still succeeded; user can tap Back up to cloud later.
+      }
+
       return book;
     } catch (error) {
       try {

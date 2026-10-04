@@ -1,0 +1,186 @@
+name: Android Release APK
+
+# Independent of the web and backend pipelines. Never deploys to the VPS — the APK
+# goes to a GitHub artifact (manual run) or a GitHub Release (version tag).
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Warn above this; does not fail the build. Tin Pata bundles react-native-pdf and
+  # blob-util, so it is expected to be heavier than a plain Expo app.
+  APK_SIZE_TARGET_MB: 25
+
+jobs:
+  build-apk:
+    name: Build arm64-v8a release APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Only EXPO_PUBLIC_* values, which are readable by anyone who installs the APK.
+      # No OpenAI key, no service-role key: the app reaches AI only via the backend.
+      - name: Create .env for the bundle
+        run: |
+          cat > .env <<'ENV'
+          EXPO_PUBLIC_SUPABASE_URL=${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=${{ secrets.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+          EXPO_PUBLIC_API_URL=${{ secrets.EXPO_PUBLIC_API_URL }}
+          ENV
+          echo "Wrote .env with keys:"
+          cut -d= -f1 .env
+
+      - name: Guard against secrets in the bundle
+        run: |
+          set -euo pipefail
+          if grep -qiE 'OPENAI|SERVICE_ROLE' .env; then
+            echo "::error::.env contains a server-only secret. EXPO_PUBLIC_* ships inside the APK."
+            exit 1
+          fi
+          echo "No server-only secrets in the mobile env."
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Expo doctor
+        run: npx expo-doctor
+
+      # android/ is not committed (CNG). Generate it here, then apply the native
+      # patches below — they must come after prebuild or they would be overwritten.
+      - name: Generate native Android project
+        run: npx expo prebuild --platform android
+        env:
+          CI: 1
+
+      - name: Raise Gradle JVM memory limits
+        run: |
+          set -euo pipefail
+          # Remove any existing value first so the file cannot end up with two.
+          sed -i '/^org\.gradle\.jvmargs/d' android/gradle.properties
+          printf '\norg.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m\n' >> android/gradle.properties
+          echo "--- tail of android/gradle.properties ---"
+          tail -5 android/gradle.properties
+
+      # Sideload APK: packaging full native debug symbols only inflates the download
+      # and can exhaust runner memory during the merge step.
+      - name: Disable native debug symbol packaging
+        run: |
+          set -euo pipefail
+          sed -i '/^        release {/a\            ndk { debugSymbolLevel "NONE" }' android/app/build.gradle
+          echo "--- release block ---"
+          grep -A 8 "        release {" android/app/build.gradle
+
+      - name: Build release APK (arm64-v8a only)
+        working-directory: android
+        run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a
+
+      - name: Resolve version name
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            VERSION="${{ github.ref_name }}"
+          else
+            VERSION="v$(node -p "require('./package.json').version")"
+          fi
+          echo "app_version=${VERSION}" >> "$GITHUB_ENV"
+          echo "Version: ${VERSION}"
+
+      - name: Collect APK
+        run: |
+          set -euo pipefail
+          mkdir -p release-apks
+          APK=$(find android/app/build/outputs/apk/release -name '*.apk' | head -1)
+          test -n "$APK" || { echo "::error::No APK produced."; exit 1; }
+          cp "$APK" "release-apks/tin-pata-${app_version}-arm64.apk"
+          ls -lh release-apks/
+
+      - name: Report APK size
+        run: |
+          set -euo pipefail
+          APK="release-apks/tin-pata-${app_version}-arm64.apk"
+          SIZE_BYTES=$(stat -c%s "$APK")
+          SIZE_MB=$(awk "BEGIN { printf \"%.2f\", $SIZE_BYTES/1024/1024 }")
+          echo "Tin Pata APK size: ${SIZE_MB} MB (${SIZE_BYTES} bytes)"
+          echo "apk_size_mb=${SIZE_MB}" >> "$GITHUB_ENV"
+          echo "apk_size_bytes=${SIZE_BYTES}" >> "$GITHUB_ENV"
+          {
+            echo "### Tin Pata APK"
+            echo ""
+            echo "| Field | Value |"
+            echo "|-------|-------|"
+            echo "| Version | ${app_version} |"
+            echo "| Size | ${SIZE_MB} MB |"
+            echo "| ABI | arm64-v8a |"
+            echo "| Commit | ${GITHUB_SHA::7} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if awk "BEGIN { exit !($SIZE_MB > ${APK_SIZE_TARGET_MB}) }"; then
+            echo "::warning::APK size is ${SIZE_MB} MB, above the ${APK_SIZE_TARGET_MB} MB target."
+          fi
+
+      # Largest entries in the APK — the starting point for any size investigation.
+      - name: APK composition
+        run: |
+          set -euo pipefail
+          APK="release-apks/tin-pata-${app_version}-arm64.apk"
+          echo "--- 30 largest entries ---"
+          unzip -l "$APK" | sort -k1 -n | tail -30
+          echo "--- totals by top-level directory ---"
+          unzip -l "$APK" | awk 'NF>=4 && $1 ~ /^[0-9]+$/ {
+            split($4, p, "/"); dir = (p[2] == "") ? $4 : p[1];
+            total[dir] += $1
+          } END { for (d in total) printf "%12d  %s\n", total[d], d }' | sort -rn | head -15
+
+      - name: Publish GitHub Release (tags only)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          body: |
+            ## Tin Pata ${{ env.app_version }}
+
+            | Field | Value |
+            |-------|-------|
+            | Version | `${{ env.app_version }}` |
+            | Commit | `${{ github.sha }}` |
+            | Architecture | `arm64-v8a` |
+            | APK size | ${{ env.apk_size_mb }} MB |
+            | Build type | Release — Hermes bytecode, ProGuard + resource shrinking |
+
+            Sideload build for 64-bit ARM devices, which is every mainstream Android
+            phone from roughly 2017 onward. It does **not** include `armeabi-v7a`,
+            `x86`, or `x86_64`, so it will not install on very old handsets or on
+            most emulators. A Play Store release would ship an AAB instead.
+          files: release-apks/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload APK artifact (manual runs)
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: tin-pata-apk
+          path: release-apks/*.apk
+          retention-days: 14

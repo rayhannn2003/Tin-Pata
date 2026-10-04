@@ -6,6 +6,7 @@ import { MIGRATION_V4 } from '@/db/migrations/004_book_organization';
 import { MIGRATION_V5 } from '@/db/migrations/005_sync_metadata';
 import { MIGRATION_V6 } from '@/db/migrations/006_sync_queue';
 import { MIGRATION_V7 } from '@/db/migrations/007_pdf_cloud_fields';
+import { MIGRATION_V8 } from '@/db/migrations/008_cover_image';
 
 export const MIGRATIONS: { version: number; sql: string }[] = [
   { version: 1, sql: MIGRATION_V1 },
@@ -15,4 +16,5 @@ export const MIGRATIONS: { version: number; sql: string }[] = [
   { version: 5, sql: MIGRATION_V5 },
   { version: 6, sql: MIGRATION_V6 },
   { version: 7, sql: MIGRATION_V7 },
+  { version: 8, sql: MIGRATION_V8 },
 ];

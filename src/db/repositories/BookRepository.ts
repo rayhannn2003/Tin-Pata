@@ -42,6 +42,7 @@ interface BookRow {
   pdf_uploaded_at: string | null;
   pdf_cloud_available: number;
   pdf_cloud_deleted_at: string | null;
+  cover_image_path: string | null;
 }
 
 function mapRow(row: BookRow): Book {
@@ -71,6 +72,7 @@ function mapRow(row: BookRow): Book {
     pdfUploadedAt: row.pdf_uploaded_at,
     pdfCloudAvailable: row.pdf_cloud_available === 1,
     pdfCloudDeletedAt: row.pdf_cloud_deleted_at,
+    coverImagePath: row.cover_image_path ?? null,
     ...mapSyncFromRow(row),
   };
 }
@@ -105,8 +107,8 @@ export const BookRepository = {
           status, category, priority, is_uploaded, is_downloaded, created_at, updated_at,
           user_id, device_id, sync_status, last_synced_at, deleted_at, current_page_updated_at,
           cloud_storage_path, pdf_file_name, pdf_file_size, pdf_sha256, pdf_uploaded_at,
-          pdf_cloud_available, pdf_cloud_deleted_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          pdf_cloud_available, pdf_cloud_deleted_at, cover_image_path
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         book.id,
         book.title,
         book.author,
@@ -137,6 +139,7 @@ export const BookRepository = {
         book.pdfUploadedAt,
         book.pdfCloudAvailable ? 1 : 0,
         book.pdfCloudDeletedAt,
+        book.coverImagePath,
       );
     });
   },
@@ -171,7 +174,8 @@ export const BookRepository = {
           is_uploaded = ?, is_downloaded = ?, updated_at = ?,
           device_id = ?, sync_status = ?, current_page_updated_at = ?,
           cloud_storage_path = ?, pdf_file_name = ?, pdf_file_size = ?, pdf_sha256 = ?,
-          pdf_uploaded_at = ?, pdf_cloud_available = ?, pdf_cloud_deleted_at = ?
+          pdf_uploaded_at = ?, pdf_cloud_available = ?, pdf_cloud_deleted_at = ?,
+          cover_image_path = ?
         WHERE id = ?`,
         updated.title,
         updated.author,
@@ -198,6 +202,7 @@ export const BookRepository = {
         updated.pdfUploadedAt,
         updated.pdfCloudAvailable ? 1 : 0,
         updated.pdfCloudDeletedAt,
+        updated.coverImagePath,
         id,
       );
     });

@@ -76,10 +76,11 @@ function DictionaryPanelInner({
   const [entries, setEntries] = useState<DictionaryEntry[]>([]);
   const [fromCache, setFromCache] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [recent, setRecent] = useState<DictionaryRecentItem[]>([]);
+  const [recent, setRecent] = useState<DictionaryRecentItem[]>(() =>
+    DictionaryService.getRecent(),
+  );
 
   useEffect(() => {
-    setRecent(DictionaryService.getRecent());
     if (!String(initialWord ?? '').trim()) {
       inputRef.current?.focus();
       inputRef.current?.select();

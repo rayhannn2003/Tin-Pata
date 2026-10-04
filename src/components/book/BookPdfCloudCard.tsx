@@ -122,6 +122,9 @@ export function BookPdfCloudCard({ book, onChanged, onRelink }: BookPdfCloudCard
         {t('sync.metadataOnly')}
       </ThemedText>
       <ThemedText variant="caption" secondary>
+        {t('pdfCloud.webNeedsBackup')}
+      </ThemedText>
+      <ThemedText variant="caption" secondary>
         {t('pdfCloud.maxSize', { size: formatMaxCloudPdfSizeMb() })}
       </ThemedText>
       <ThemedText variant="caption">{statusLabel}</ThemedText>

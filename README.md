@@ -58,6 +58,24 @@ Full guide: [docs/BACKUP_AND_RESTORE.md](docs/BACKUP_AND_RESTORE.md)
 | Database | SQLite (expo-sqlite) |
 | PDF | react-native-pdf (dev build required) |
 | Notifications | expo-notifications (local only) |
+| Web | Next.js (App Router) — `tin-pata-web/` |
+| Backend | Node.js + Express — `backend/` (AI, holds the OpenAI key) |
+| Cloud | Supabase — auth, Postgres + RLS, Storage |
+
+---
+
+## Repository layout
+
+```
+Read_Book/
+├── app/  src/  app.json     Expo mobile app (this repo root)
+├── tin-pata-web/            Next.js web app      → book.daftar-e.com
+├── backend/                 Tin Pata API         → api.book.daftar-e.com
+└── .github/workflows/       Three independent pipelines
+```
+
+Each app deploys on its own pipeline, triggered by path filters — see
+[Deployment Architecture](docs/DEPLOYMENT_ARCHITECTURE.md).
 
 ---
 
@@ -114,6 +132,10 @@ See [docs/BRAND_ASSETS.md](docs/BRAND_ASSETS.md) for paths and sizes.
 
 | Document | Description |
 |----------|-------------|
+| [Deployment Architecture](docs/DEPLOYMENT_ARCHITECTURE.md) | The three CI/CD pipelines |
+| [VPS Deployment](docs/VPS_DEPLOYMENT.md) | Deploy user, releases, PM2, Nginx, rollback, secrets |
+| [Android Release](docs/ANDROID_RELEASE.md) | Tagged/manual APK, arm64, size optimisation |
+| [AI Backend](docs/AI_BACKEND.md) | AI API, auth, rate limiting, secrets |
 | [Version History](docs/VERSION_HISTORY.md) | Release notes (v1.0–v1.4) |
 | [Engineering Architecture](docs/ENGINEERING_ARCHITECTURE.md) | System design, data flows, v2 bridge |
 | [Database Audit](docs/DB_AUDIT.md) | SQLite schema audit (v1.5B) |
@@ -136,6 +158,7 @@ See [docs/BRAND_ASSETS.md](docs/BRAND_ASSETS.md) for paths and sizes.
 | [v2 Supabase Metadata Schema](docs/V2_SUPABASE_METADATA_SCHEMA.sql) | Postgres tables for sync |
 | [v2 PDF Cloud Backup](docs/V2_PDF_CLOUD_BACKUP.md) | Supabase Storage PDF backup (v2.0D) |
 | [v2 Supabase Storage Setup](docs/V2_SUPABASE_STORAGE_SETUP.sql) | Storage bucket + policies |
+| [v2 Cover Images Setup](docs/V2_SUPABASE_COVER_IMAGES.sql) | Book cover bucket + `cover_image_path` |
 | [v2 PDF Cloud Test Checklist](docs/V2_PDF_CLOUD_BACKUP_TEST_CHECKLIST.md) | v2.0D QA checklist |
 | [v2 Storage Strategy](docs/V2_STORAGE_STRATEGY.md) | Local + cloud storage plan |
 | [v1.4 Release Checklist](docs/V1_4_RELEASE_CHECKLIST.md) | Final QA sign-off (v1.4.0) |

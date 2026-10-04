@@ -74,7 +74,7 @@ export const BookListItem = memo(function BookListItem({
     <Card style={[styles.card, deleting && styles.deleting]}>
       <Pressable onPress={onPress} style={styles.mainPress}>
         <View style={styles.header}>
-          <BookVisual title={book.title} size="md" />
+          <BookVisual title={book.title} coverImagePath={book.coverImagePath} size="md" />
           <View style={styles.titleBlock}>
             <ThemedText variant="subtitle" numberOfLines={2}>
               {book.title}

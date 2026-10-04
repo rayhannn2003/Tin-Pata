@@ -37,6 +37,7 @@ function mapRemotePdfCloud(row: RemoteRow) {
     pdfUploadedAt: readString(row.pdf_uploaded_at),
     pdfCloudAvailable: readCloudBool(row.pdf_cloud_available),
     pdfCloudDeletedAt: readString(row.pdf_cloud_deleted_at),
+    coverImagePath: readString(row.cover_image_path),
   };
 }
 
@@ -112,6 +113,7 @@ async function applyRemoteBook(row: RemoteRow): Promise<boolean> {
       pdf_uploaded_at: string | null;
       pdf_cloud_available: number;
       pdf_cloud_deleted_at: string | null;
+      cover_image_path: string | null;
       is_uploaded: number;
     }>('SELECT * FROM books WHERE id = ?', id);
 
@@ -160,6 +162,9 @@ async function applyRemoteBook(row: RemoteRow): Promise<boolean> {
       const nextPdfCloudDeletedAt = pdfWins
         ? pdfCloud.pdfCloudDeletedAt
         : existing.pdf_cloud_deleted_at;
+      const nextCoverPath = metadataWins
+        ? pdfCloud.coverImagePath
+        : existing.cover_image_path;
       const nextIsUploaded = pdfWins ? (pdfCloud.pdfCloudAvailable ? 1 : 0) : existing.is_uploaded;
 
       await db.runAsync(
@@ -170,7 +175,7 @@ async function applyRemoteBook(row: RemoteRow): Promise<boolean> {
           current_page_updated_at = ?,
           cloud_storage_path = ?, pdf_file_name = ?, pdf_file_size = ?, pdf_sha256 = ?,
           pdf_uploaded_at = ?, pdf_cloud_available = ?, pdf_cloud_deleted_at = ?,
-          is_uploaded = ?
+          cover_image_path = ?, is_uploaded = ?
          WHERE id = ?`,
         nextTitle,
         nextAuthor,
@@ -192,6 +197,7 @@ async function applyRemoteBook(row: RemoteRow): Promise<boolean> {
         nextPdfUploadedAt,
         nextPdfCloudAvailable ? 1 : 0,
         nextPdfCloudDeletedAt,
+        nextCoverPath,
         nextIsUploaded,
         id,
       );
@@ -205,8 +211,8 @@ async function applyRemoteBook(row: RemoteRow): Promise<boolean> {
         status, category, priority, is_uploaded, is_downloaded, created_at, updated_at,
         user_id, device_id, sync_status, last_synced_at, deleted_at, current_page_updated_at,
         cloud_storage_path, pdf_file_name, pdf_file_size, pdf_sha256, pdf_uploaded_at,
-        pdf_cloud_available, pdf_cloud_deleted_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, 'synced', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        pdf_cloud_available, pdf_cloud_deleted_at, cover_image_path
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, 'synced', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       id,
       readString(row.title) ?? 'Untitled',
       readString(row.author),
@@ -235,6 +241,7 @@ async function applyRemoteBook(row: RemoteRow): Promise<boolean> {
       pdfCloud.pdfUploadedAt,
       pdfCloud.pdfCloudAvailable ? 1 : 0,
       pdfCloud.pdfCloudDeletedAt,
+      pdfCloud.coverImagePath,
     );
     return true;
   });

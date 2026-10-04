@@ -33,6 +33,8 @@ export interface Book extends SyncMetadata {
   pdfUploadedAt: string | null;
   pdfCloudAvailable: boolean;
   pdfCloudDeletedAt: string | null;
+  /** Supabase Storage path in `user-covers` */
+  coverImagePath: string | null;
 }
 
 export type Mood = 'calm' | 'tired' | 'motivated' | 'distracted' | 'stuck';

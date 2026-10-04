@@ -8,6 +8,7 @@ import {
   renameBookAction,
   updateBookStatusAction,
 } from '@/app/(dashboard)/dashboard/library/actions';
+import { ChangeCoverDialog } from '@/components/library/ChangeCoverDialog';
 import { BOOK_STATUSES, formatStatusLabel, type BookStatus } from '@/types/book';
 import { ROUTES } from '@/utils/constants';
 
@@ -15,6 +16,7 @@ interface BookActionsMenuProps {
   bookId: string;
   title: string;
   status: BookStatus;
+  hasCover?: boolean;
   onDeleted?: () => void;
   /** When true, navigate to library after a successful soft delete. */
   redirectToLibraryOnDelete?: boolean;
@@ -24,6 +26,7 @@ export function BookActionsMenu({
   bookId,
   title,
   status,
+  hasCover = false,
   onDeleted,
   redirectToLibraryOnDelete = false,
 }: BookActionsMenuProps) {
@@ -32,6 +35,7 @@ export function BookActionsMenu({
   const rootRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [statusOpen, setStatusOpen] = useState(false);
+  const [coverOpen, setCoverOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -78,6 +82,11 @@ export function BookActionsMenu({
       }
       refresh();
     });
+  }
+
+  function handleChangeCover() {
+    setOpen(false);
+    setCoverOpen(true);
   }
 
   function handleStatus(next: BookStatus) {
@@ -149,6 +158,7 @@ export function BookActionsMenu({
           className="absolute right-0 z-20 mt-1 min-w-[11rem] rounded-lg border border-border bg-surface py-1 shadow-md"
         >
           <MenuItem onClick={handleRename}>Rename</MenuItem>
+          <MenuItem onClick={handleChangeCover}>Change cover</MenuItem>
           <div className="relative">
             <MenuItem
               onClick={() => setStatusOpen((value) => !value)}
@@ -194,6 +204,13 @@ export function BookActionsMenu({
           {error}
         </p>
       ) : null}
+
+      <ChangeCoverDialog
+        bookId={bookId}
+        open={coverOpen}
+        hasCover={hasCover}
+        onClose={() => setCoverOpen(false)}
+      />
     </div>
   );
 }

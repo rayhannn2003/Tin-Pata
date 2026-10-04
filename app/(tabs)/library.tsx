@@ -21,6 +21,7 @@ import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { ThemedText } from '@/components/ui/ThemedText';
 import { useLibrary, type LibraryBook } from '@/features/books/useLibrary';
 import { BookService, BookRelinkError } from '@/services/BookService';
+import { CoverCloudError, CoverCloudStorageService } from '@/services/CoverCloudStorageService';
 import { PdfAvailabilityService } from '@/services/PdfAvailabilityService';
 import { useTranslation } from '@/i18n/useTranslation';
 import { Spacing } from '@/constants/layout';
@@ -160,6 +161,25 @@ export default function LibraryScreen() {
       {
         text: t('library.rename'),
         onPress: () => setRenameBook(book),
+      },
+      {
+        text: t('library.changeCover'),
+        onPress: () => {
+          void (async () => {
+            try {
+              await CoverCloudStorageService.uploadCoverForBook(book.id);
+              await refresh();
+            } catch (err) {
+              if (err instanceof CoverCloudError && err.message === 'No image selected.') {
+                return;
+              }
+              Alert.alert(
+                t('library.coverFailed'),
+                err instanceof Error ? err.message : t('library.coverFailed'),
+              );
+            }
+          })();
+        },
       },
     ];
 

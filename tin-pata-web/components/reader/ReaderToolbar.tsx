@@ -28,6 +28,7 @@ interface ReaderToolbarProps {
   onOpenGoToPage: () => void;
   onOpenSettings: () => void;
   onOpenDictionary: () => void;
+  onOpenSummary: () => void;
   onNewNote: () => void;
   onToggleCheckpointMode: () => void;
   checkpointDrawMode: boolean;
@@ -56,6 +57,7 @@ export function ReaderToolbar({
   onOpenGoToPage,
   onOpenSettings,
   onOpenDictionary,
+  onOpenSummary,
   onNewNote,
   onToggleCheckpointMode,
   checkpointDrawMode,
@@ -146,6 +148,16 @@ export function ReaderToolbar({
         aria-label="Open dictionary"
       >
         Dictionary
+      </button>
+
+      <button
+        type="button"
+        onClick={onOpenSummary}
+        title="AI Summary (S)"
+        className="inline-flex h-8 items-center rounded-md px-2 text-xs font-medium text-foreground hover:bg-tint-muted"
+        aria-label="Open AI summary"
+      >
+        AI Summary
       </button>
 
       <button

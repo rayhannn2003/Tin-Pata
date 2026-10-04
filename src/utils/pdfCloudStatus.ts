@@ -17,6 +17,7 @@ export function emptyPdfCloudFields(): Pick<
   | 'pdfUploadedAt'
   | 'pdfCloudAvailable'
   | 'pdfCloudDeletedAt'
+  | 'coverImagePath'
 > {
   return {
     cloudStoragePath: null,
@@ -26,6 +27,7 @@ export function emptyPdfCloudFields(): Pick<
     pdfUploadedAt: null,
     pdfCloudAvailable: false,
     pdfCloudDeletedAt: null,
+    coverImagePath: null,
   };
 }
 

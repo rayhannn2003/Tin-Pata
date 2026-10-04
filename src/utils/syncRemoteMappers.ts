@@ -34,6 +34,7 @@ export function bookToRemotePayload(book: Book, userId: string, deviceId: string
     pdf_uploaded_at: book.pdfUploadedAt,
     pdf_cloud_available: book.pdfCloudAvailable,
     pdf_cloud_deleted_at: book.pdfCloudDeletedAt,
+    cover_image_path: book.coverImagePath,
   };
 }
 

@@ -6,11 +6,14 @@ import { useRouter } from 'next/navigation';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { SectionCard } from '@/components/dashboard/SectionCard';
 import { useTheme } from '@/components/providers/ThemeProvider';
+import { GoalSettingsCard } from '@/components/settings/GoalSettingsCard';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { saveDailyGoalAction } from '@/app/(dashboard)/dashboard/settings/actions';
 import { useAuth } from '@/hooks/useAuth';
 import { ProfileService } from '@/services/ProfileService';
 import { UserSettingsService } from '@/services/UserSettingsService';
+import type { GoalType } from '@/types/analytics';
 import type {
   DictionaryMode,
   DictionaryPreferences,
@@ -20,7 +23,15 @@ import type { Profile } from '@/types/profile';
 import { DEFAULT_READER_PREFERENCES, type ReaderPreferences } from '@/types/reader';
 import { ROUTES } from '@/utils/constants';
 
-export function SettingsClient() {
+interface SettingsClientProps {
+  initialGoalType?: GoalType;
+  initialGoalTarget?: number;
+}
+
+export function SettingsClient({
+  initialGoalType = 'pages',
+  initialGoalTarget = 5,
+}: SettingsClientProps) {
   const router = useRouter();
   const { user, signOut, loading: authLoading } = useAuth();
   const { theme, setTheme } = useTheme();
@@ -143,6 +154,17 @@ export function SettingsClient() {
             </Button>
           </div>
         </form>
+      </SectionCard>
+
+      <SectionCard
+        title="Daily reading goal"
+        description="Same goal used for streaks on web and mobile when synced."
+      >
+        <GoalSettingsCard
+          initialGoalType={initialGoalType}
+          initialTarget={initialGoalTarget}
+          onSave={saveDailyGoalAction}
+        />
       </SectionCard>
 
       <SectionCard title="Appearance" description="Theme follows across web and synced preference.">
@@ -305,10 +327,26 @@ export function SettingsClient() {
 
       <SectionCard title="Language & notifications" description="Synced from the mobile app.">
         <p className="text-sm text-muted">
-          Language, reading reminders, and rescue notifications are managed in the Tin Pata Android
-          app for now. Values already synced to cloud settings will be reused when web i18n and
-          push land.
+          App language and reading reminders are managed in the Tin Pata Android app. Theme and
+          daily goals above sync through the same cloud settings.
         </p>
+      </SectionCard>
+
+      <SectionCard title="Cloud PDFs" description="How web and mobile share book files.">
+        <p className="text-sm text-muted">
+          Metadata syncs automatically. PDF bytes only appear on web after you tap{' '}
+          <strong className="font-medium text-foreground">Back up to cloud</strong> on mobile, or
+          upload a PDF from the web library. Web streams the file with a signed URL — it does not
+          need a separate download step.
+        </p>
+        <Button
+          type="button"
+          variant="secondary"
+          className="mt-4"
+          onClick={() => router.push(ROUTES.library)}
+        >
+          Go to library
+        </Button>
       </SectionCard>
 
       <SectionCard title="Library upload" description="Web PDF import limits.">

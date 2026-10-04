@@ -4,13 +4,17 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist';
 
+import { ExplainSelectionAction } from '@/components/ai/ExplainSelectionAction';
 import { PdfPage } from '@/components/reader/PdfPage';
+import { AIService } from '@/services/AIService';
 import type { ReaderCheckpoint } from '@/types/checkpoint';
 import type { ReaderZoomMode } from '@/types/reader';
 import { throttle } from '@/utils/debounce';
 import {
   selectWordAtPoint,
+  selectionPassageInContainer,
   selectionWordInContainer,
+  type PdfSelectedPassage,
   type PdfSelectedWord,
 } from '@/utils/pdfTextSelection';
 
@@ -33,6 +37,8 @@ interface PdfContainerProps {
   onCloseDictionary?: () => void;
   /** When false, double-click still selects the word but does not open dictionary. */
   openOnDoubleClick?: boolean;
+  /** Opens the AI explanation panel for a selected passage. */
+  onExplainSelection?: (passage: { text: string; pageNumber: number }) => void;
   checkpoints?: ReaderCheckpoint[];
   checkpointDrawMode?: boolean;
   onCheckpointDraw?: (payload: {
@@ -61,6 +67,7 @@ export function PdfContainer({
   dictionaryOpen = false,
   onCloseDictionary,
   openOnDoubleClick = true,
+  onExplainSelection,
   checkpoints = [],
   checkpointDrawMode = false,
   onCheckpointDraw,
@@ -68,6 +75,7 @@ export function PdfContainer({
 }: PdfContainerProps) {
   const parentRef = useRef<HTMLDivElement>(null);
   const lastSelectionRef = useRef<PdfSelectedWord | null>(null);
+  const [explainPassage, setExplainPassage] = useState<PdfSelectedPassage | null>(null);
   const [containerSize, setContainerSize] = useState({ width: 720, height: 600 });
   const [basePageSize, setBasePageSize] = useState({ width: 612, height: 792 });
   const heightMapRef = useRef<Map<number, number>>(new Map());
@@ -171,7 +179,37 @@ export function PdfContainer({
   const cacheSelection = useCallback(() => {
     if (!parentRef.current) return;
     lastSelectionRef.current = selectionWordInContainer(parentRef.current);
+
+    if (!onExplainSelection) {
+      return;
+    }
+    // Offer "Explain" only for passage-sized selections; single words go to the dictionary.
+    const passage = selectionPassageInContainer(parentRef.current);
+    setExplainPassage(passage && AIService.canExplain(passage.text) ? passage : null);
+  }, [onExplainSelection]);
+
+  const dismissExplain = useCallback(() => {
+    setExplainPassage(null);
   }, []);
+
+  // The chip is anchored to viewport coordinates, so anything that moves the page
+  // invalidates it. Dismissing also keeps it out of the way of normal reading.
+  useEffect(() => {
+    if (!explainPassage) return;
+    const el = parentRef.current;
+    const clear = () => setExplainPassage(null);
+    function onKey(event: KeyboardEvent) {
+      if (event.key === 'Escape') clear();
+    }
+    el?.addEventListener('scroll', clear, { passive: true });
+    window.addEventListener('resize', clear);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      el?.removeEventListener('scroll', clear);
+      window.removeEventListener('resize', clear);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [explainPassage]);
 
   const handleContextMenu = useCallback(
     (event: React.MouseEvent) => {
@@ -276,6 +314,7 @@ export function PdfContainer({
         className="h-full min-h-0 flex-1 overflow-y-auto bg-[color-mix(in_srgb,var(--background)_88%,#000_6%)]"
         role="document"
         aria-label="PDF pages"
+        onMouseDown={checkpointDrawMode ? undefined : dismissExplain}
         onMouseUp={checkpointDrawMode ? undefined : cacheSelection}
         onKeyUp={checkpointDrawMode ? undefined : cacheSelection}
         onContextMenu={checkpointDrawMode ? undefined : handleContextMenu}
@@ -312,6 +351,17 @@ export function PdfContainer({
           })}
         </div>
       </div>
+
+      {explainPassage && onExplainSelection && !checkpointDrawMode ? (
+        <ExplainSelectionAction
+          rect={explainPassage.rect}
+          onExplain={() => {
+            const { text, pageNumber } = explainPassage;
+            setExplainPassage(null);
+            onExplainSelection({ text, pageNumber });
+          }}
+        />
+      ) : null}
     </div>
   );
 }

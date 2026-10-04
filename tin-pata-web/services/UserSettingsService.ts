@@ -1,5 +1,11 @@
 import { createClient } from '@/lib/supabase/client';
 import { getOrCreateWebDeviceId } from '@/utils/deviceId';
+import type { AIPreferences } from '@/types/ai';
+import {
+  AI_SETTING_KEYS,
+  DEFAULT_AI_PREFERENCES,
+  isExplanationMode,
+} from '@/types/ai';
 import type { DictionaryPreferences } from '@/types/dictionary';
 import {
   DEFAULT_DICTIONARY_PREFERENCES,
@@ -168,5 +174,24 @@ export const UserSettingsService = {
       );
     }
     await Promise.all(tasks);
+  },
+
+  async loadAiPreferences(): Promise<AIPreferences> {
+    const raw = await this.getMany(Object.values(AI_SETTING_KEYS));
+    const mode = raw[AI_SETTING_KEYS.defaultExplanationMode];
+    return {
+      defaultExplanationMode: isExplanationMode(mode)
+        ? mode
+        : DEFAULT_AI_PREFERENCES.defaultExplanationMode,
+    };
+  },
+
+  async saveAiPreferences(partial: Partial<AIPreferences>): Promise<void> {
+    if (partial.defaultExplanationMode != null) {
+      await this.set(
+        AI_SETTING_KEYS.defaultExplanationMode,
+        partial.defaultExplanationMode,
+      );
+    }
   },
 };

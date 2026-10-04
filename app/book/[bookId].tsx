@@ -2,6 +2,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -34,6 +35,7 @@ import { useTranslation } from '@/i18n/useTranslation';
 import { Spacing } from '@/constants/layout';
 import { useThemeColors } from '@/hooks/useColorScheme';
 import { BookService, BookRelinkError } from '@/services/BookService';
+import { CoverCloudError, CoverCloudStorageService } from '@/services/CoverCloudStorageService';
 import { PdfAvailabilityService } from '@/services/PdfAvailabilityService';
 import {
   BOOK_CATEGORIES,
@@ -58,6 +60,7 @@ export default function BookDetailScreen() {
   const { notes, loading: notesLoading } = useBookNotes(bookId);
   const { bookmarks, loading: bookmarksLoading } = useBookmarks(bookId);
   const [renameVisible, setRenameVisible] = useState(false);
+  const [coverBusy, setCoverBusy] = useState(false);
   const [categoryPickerVisible, setCategoryPickerVisible] = useState(false);
   const [priorityPickerVisible, setPriorityPickerVisible] = useState(false);
   const [statusPickerVisible, setStatusPickerVisible] = useState(false);
@@ -174,6 +177,60 @@ export default function BookDetailScreen() {
     await refresh();
   };
 
+  const handleChangeCover = () => {
+    if (!book || coverBusy) {
+      return;
+    }
+    const options: { text: string; style?: 'cancel' | 'destructive'; onPress?: () => void }[] = [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('library.changeCover'),
+        onPress: () => {
+          void (async () => {
+            try {
+              setCoverBusy(true);
+              await CoverCloudStorageService.uploadCoverForBook(book.id);
+              await refresh();
+            } catch (err) {
+              if (err instanceof CoverCloudError && err.message === 'No image selected.') {
+                return;
+              }
+              Alert.alert(
+                t('library.coverFailed'),
+                err instanceof Error ? err.message : t('library.coverFailed'),
+              );
+            } finally {
+              setCoverBusy(false);
+            }
+          })();
+        },
+      },
+    ];
+    if (book.coverImagePath) {
+      options.splice(1, 0, {
+        text: t('library.removeCover'),
+        style: 'destructive',
+        onPress: () => {
+          void (async () => {
+            try {
+              setCoverBusy(true);
+              await CoverCloudStorageService.removeCoverForBook(book.id);
+              await refresh();
+            } catch (err) {
+              Alert.alert(
+                t('library.coverFailed'),
+                err instanceof Error ? err.message : t('library.coverFailed'),
+              );
+            } finally {
+              setCoverBusy(false);
+            }
+          })();
+        },
+      });
+    }
+    Alert.alert(t('library.changeCover'), undefined, options);
+  };
+
   if (bookLoading || !book) {
     return (
       <SafeAreaView style={[styles.root, { backgroundColor: colors.background }]}>
@@ -205,7 +262,7 @@ export default function BookDetailScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.hero}>
-          <BookVisual title={book.title} size="lg" />
+          <BookVisual title={book.title} coverImagePath={book.coverImagePath} size="lg" />
           <View style={styles.heroText}>
             <ThemedText variant="title" numberOfLines={3}>
               {book.title}
@@ -300,6 +357,7 @@ export default function BookDetailScreen() {
           <BookActionsCard
             status={book.status}
             onRename={() => setRenameVisible(true)}
+            onChangeCover={handleChangeCover}
             onMarkReading={() => {
               void (async () => {
                 await BookService.updateBookStatus(book.id, 'reading');
